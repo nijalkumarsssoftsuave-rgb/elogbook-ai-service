@@ -16,10 +16,13 @@ from app.application.ports import (
     LanguageDetectorPort,
     ModelClientPort,
     RerankerPort,
+    SpeechToTextPort,
     VectorStorePort,
 )
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
+from app.application.stt_service import STTApplicationService
+from app.application.transcription_service import TranscriptionService
 from app.core.config import Settings, get_settings
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
@@ -29,6 +32,7 @@ from app.infrastructure.stubs.embedding_stub import EmbeddingStub
 from app.infrastructure.stubs.guardrail_stub import GuardrailStub
 from app.infrastructure.stubs.model_client_stub import ModelClientStub
 from app.infrastructure.stubs.reranker_stub import RerankerStub
+from app.infrastructure.stubs.speech_to_text_stub import SpeechToTextStub
 from app.infrastructure.stubs.vector_store_stub import VectorStoreStub
 
 # Ports: one cached factory each. Swapping a stub for a real adapter is a one-line
@@ -78,6 +82,11 @@ def get_cache_port() -> CachePort:
 @lru_cache
 def get_audit_port() -> AuditPort:
     return AuditStub()
+
+
+@lru_cache
+def get_speech_to_text_port() -> SpeechToTextPort:
+    return SpeechToTextStub()
 
 
 # Services: composed per request from the cached ports above.
@@ -142,3 +151,22 @@ def get_qa_service(
         citation_validation_service,
         audit_service,
     )
+
+
+def get_transcription_service(
+    speech_to_text: SpeechToTextPort = Depends(get_speech_to_text_port),
+    settings: Settings = Depends(get_settings),
+) -> TranscriptionService:
+    return TranscriptionService(
+        speech_to_text=speech_to_text,
+        allowed_content_types=settings.stt_allowed_content_types,
+        max_audio_bytes=settings.stt_max_audio_bytes,
+        supported_languages=settings.supported_languages,
+    )
+
+
+def get_stt_service(
+    transcription_service: TranscriptionService = Depends(get_transcription_service),
+    qa_service: QAApplicationService = Depends(get_qa_service),
+) -> STTApplicationService:
+    return STTApplicationService(transcription_service, qa_service)
