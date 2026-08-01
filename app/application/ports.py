@@ -1,24 +1,50 @@
 from typing import Protocol
 
-from app.domain.models import DetectedLanguage, GroundedAnswer, Question, RetrievedChunk
+from app.domain.models import DetectedLanguage, Embedding, GroundedAnswer, Question, RetrievedChunk
 
 
 class LanguageDetectorPort(Protocol):
     async def detect(self, text: str) -> DetectedLanguage: ...
 
 
-class RetrieverPort(Protocol):
-    async def retrieve(self, question: Question, top_k: int = 5) -> list[RetrievedChunk]: ...
+class EmbeddingPort(Protocol):
+    async def embed(self, text: str) -> Embedding: ...
+
+
+class VectorStorePort(Protocol):
+    """Dense (vector-similarity) retrieval. `search` rather than `retrieve` — the latter
+    is reserved for RetrievalService's business-capability method.
+    """
+
+    async def search(self, embedding: Embedding, top_k: int = 5) -> list[RetrievedChunk]: ...
+
+
+class KeywordRetrieverPort(Protocol):
+    """Sparse (keyword) retrieval, e.g. BM25."""
+
+    async def search(self, query_text: str, top_k: int = 5) -> list[RetrievedChunk]: ...
+
+
+class RerankerPort(Protocol):
+    async def rerank(
+        self, question: Question, chunks: list[RetrievedChunk]
+    ) -> list[RetrievedChunk]: ...
 
 
 class ModelClientPort(Protocol):
-    async def generate(
-        self, question: Question, context_chunks: list[RetrievedChunk]
-    ) -> GroundedAnswer: ...
+    """Sends a fully-built prompt to the LLM and returns the raw completion text.
+    Prompt construction and citation parsing live in the application layer, not here.
+    """
+
+    async def generate(self, prompt: str) -> str: ...
 
 
 class GuardrailPort(Protocol):
     async def check_input(self, question: Question) -> None: ...
+
+    async def check_retrieved_chunks(
+        self, chunks: list[RetrievedChunk]
+    ) -> list[RetrievedChunk]: ...
 
     async def check_output(self, answer: GroundedAnswer) -> GroundedAnswer: ...
 

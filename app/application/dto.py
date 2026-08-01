@@ -16,6 +16,7 @@ class QueryResultDTO(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
     confidence: float | None = None
     is_grounded: bool = True
+    refused: bool = False
     cache_hit: bool = False
 
     @classmethod
@@ -25,5 +26,6 @@ class QueryResultDTO(BaseModel):
             citations=answer.citations,
             confidence=answer.confidence,
             is_grounded=answer.is_grounded,
+            refused=answer.refused,
             cache_hit=cache_hit,
         )

@@ -21,6 +21,7 @@ class QAQueryResponseData(BaseModel):
     citations: list[CitationResponse]
     confidence: float | None
     is_grounded: bool
+    refused: bool
     cache_hit: bool
 
     @classmethod
@@ -39,5 +40,6 @@ class QAQueryResponseData(BaseModel):
             ],
             confidence=result.confidence,
             is_grounded=result.is_grounded,
+            refused=result.refused,
             cache_hit=result.cache_hit,
         )
