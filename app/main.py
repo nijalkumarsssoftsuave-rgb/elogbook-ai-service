@@ -6,12 +6,17 @@ from app.api.v1.stt import router as stt_router
 from app.core.correlation import CorrelationIdMiddleware
 from app.core.exceptions import (
     invalid_audio_exception_handler,
+    transcription_failed_exception_handler,
     unhandled_exception_handler,
     unsupported_language_exception_handler,
     validation_exception_handler,
 )
 from app.core.security import AuthenticationMiddleware
-from app.domain.exceptions import InvalidAudioError, UnsupportedLanguageError
+from app.domain.exceptions import (
+    InvalidAudioError,
+    TranscriptionFailedError,
+    UnsupportedLanguageError,
+)
 
 
 def create_app() -> FastAPI:
@@ -24,6 +29,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(UnsupportedLanguageError, unsupported_language_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(InvalidAudioError, invalid_audio_exception_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(TranscriptionFailedError, transcription_failed_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
     app.include_router(qa_router)

@@ -26,6 +26,30 @@ class InvalidAudioError(Exception):
         super().__init__(message)
 
 
+class TranscriptionFailureReason(StrEnum):
+    MODEL_UNAVAILABLE = "model_unavailable"
+    TIMEOUT = "timeout"
+
+
+class TranscriptionFailedError(Exception):
+    """Raised when the speech engine itself could not produce a transcript.
+
+    Distinct from InvalidAudioError, which means the *upload* was unusable. Here the
+    upload was fine and the engine let us down -- the model would not load, or it ran past
+    its deadline -- so the caller should retry rather than send different audio.
+    """
+
+    def __init__(
+        self,
+        reason: TranscriptionFailureReason,
+        message: str,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        self.reason = reason
+        self.details = details or {}
+        super().__init__(message)
+
+
 class UnsupportedLanguageError(Exception):
     """Raised when the detected query language is not in the configured allow-list."""
 
