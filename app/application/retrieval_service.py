@@ -41,9 +41,16 @@ class RetrievalService:
 
         # Dense and keyword search are independent; gather lets them overlap once the
         # vector store is a real network-backed service.
+        #
+        # Only the keyword leg is language-restricted. A shared-token match across
+        # languages is noise for BM25 (an Arabic report matching an English question on
+        # the digit "7"), but for a multilingual embedder like BGE-M3 a cross-language
+        # match is a genuine semantic hit and should be kept.
         dense_results, sparse_results = await asyncio.gather(
             self._vector_store.search(query_embedding, top_k=pool_size),
-            self._keyword_retriever.search(question.text, top_k=pool_size),
+            self._keyword_retriever.search(
+                question.text, top_k=pool_size, language=question.language
+            ),
         )
 
         fused = reciprocal_rank_fusion([dense_results, sparse_results])

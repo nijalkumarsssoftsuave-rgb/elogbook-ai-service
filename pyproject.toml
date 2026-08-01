@@ -31,6 +31,9 @@ packages = ["app"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "eval: retrieval and pipeline-contract evaluation suite (tests/eval). Runs by default - it is deterministic, offline and sub-second. Use -m 'not eval' to skip it.",
+]
 
 [tool.ruff]
 line-length = 100

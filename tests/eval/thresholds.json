@@ -1,0 +1,93 @@
+{
+  "_procedure": "Regenerating these numbers: (1) uv run python -m tests.eval.run --all --write-baseline; (2) read tests/eval/baseline/*.report.md and confirm every number is what you expect; (3) uv run python -m tests.eval.run --language en --print-thresholds, then paste its output below with each floor rounded DOWN slightly. Floors sit just under measured, never at an aspirational target: this suite exists to catch a real drop, not to fail on day one. Raise a floor only after a deliberate improvement; lower one only with a note in the commit message explaining why the regression is accepted.",
+  "_no_k1_on_retrieval_raw": "retrieval_raw has no k=1 block on purpose. The dense stub returns one fixed chunk that ties the top keyword hit on RRF score and wins by insertion order, so rank 1 is always the stub and every k=1 metric there is pinned at 0.0. A floor of 0.0 would be noise. test_pipeline_tripwires.py fails loudly when that stops being true.",
+  "_precision_not_thresholded": "precision_at_k is reported but never given a floor: with one or two relevant chunks per question its ceiling at k=5 is 0.2-0.4, so a floor would penalise a perfect run.",
+  "_refusal_not_thresholded": "refusal_rate and correct_refusal_rate are 0.0 today because the dense stub always supplies evidence, so the pipeline can never refuse. A floor of 0.0 is vacuous; these become thresholdable when the vector store is real.",
+  "version": 1,
+  "languages": {
+    "en": {
+      "retrieval": {
+        "keyword_only": {
+          "1": {
+            "hit_rate_at_k": {"min": 0.65},
+            "recall_at_k": {"min": 0.58},
+            "mrr_at_k": {"min": 0.65},
+            "ndcg_at_k": {"min": 0.65}
+          },
+          "3": {
+            "hit_rate_at_k": {"min": 0.80},
+            "recall_at_k": {"min": 0.80},
+            "mrr_at_k": {"min": 0.73},
+            "ndcg_at_k": {"min": 0.74}
+          },
+          "5": {
+            "hit_rate_at_k": {"min": 0.88},
+            "recall_at_k": {"min": 0.88},
+            "mrr_at_k": {"min": 0.75},
+            "ndcg_at_k": {"min": 0.78}
+          }
+        },
+        "retrieval_raw": {
+          "3": {
+            "hit_rate_at_k": {"min": 0.80},
+            "recall_at_k": {"min": 0.76},
+            "ndcg_at_k": {"min": 0.46}
+          },
+          "5": {
+            "hit_rate_at_k": {"min": 0.88},
+            "recall_at_k": {"min": 0.88},
+            "ndcg_at_k": {"min": 0.51}
+          }
+        }
+      },
+      "contract": {
+        "citation_validity_rate": {"min": 1.0},
+        "cited_relevant_rate": {"min": 0.88},
+        "grounded_rate": {"min": 1.0},
+        "false_refusal_rate": {"max": 0.0}
+      }
+    },
+    "ar": {
+      "retrieval": {
+        "keyword_only": {
+          "1": {
+            "hit_rate_at_k": {"min": 0.73},
+            "recall_at_k": {"min": 0.69},
+            "mrr_at_k": {"min": 0.73},
+            "ndcg_at_k": {"min": 0.73}
+          },
+          "3": {
+            "hit_rate_at_k": {"min": 0.73},
+            "recall_at_k": {"min": 0.73},
+            "mrr_at_k": {"min": 0.73},
+            "ndcg_at_k": {"min": 0.73}
+          },
+          "5": {
+            "hit_rate_at_k": {"min": 0.73},
+            "recall_at_k": {"min": 0.73},
+            "mrr_at_k": {"min": 0.73},
+            "ndcg_at_k": {"min": 0.73}
+          }
+        },
+        "retrieval_raw": {
+          "3": {
+            "hit_rate_at_k": {"min": 0.73},
+            "recall_at_k": {"min": 0.73},
+            "ndcg_at_k": {"min": 0.45}
+          },
+          "5": {
+            "hit_rate_at_k": {"min": 0.73},
+            "recall_at_k": {"min": 0.73},
+            "ndcg_at_k": {"min": 0.45}
+          }
+        }
+      },
+      "contract": {
+        "citation_validity_rate": {"min": 1.0},
+        "cited_relevant_rate": {"min": 0.73},
+        "grounded_rate": {"min": 1.0},
+        "false_refusal_rate": {"max": 0.0}
+      }
+    }
+  }
+}

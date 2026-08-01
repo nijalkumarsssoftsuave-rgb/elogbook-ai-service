@@ -3,6 +3,10 @@ from datetime import UTC, datetime, timedelta
 
 os.environ.setdefault("SERVICE_JWT_SECRET", "test-secret-key-for-elogbook-ai-service-unit-tests")
 os.environ.setdefault("SERVICE_JWT_ALGORITHM", "HS256")
+# Pinned here rather than left to .env: pydantic-settings ranks real environment
+# variables above dotenv, so this keeps the allow-list deterministic regardless of what
+# a developer happens to have in their (gitignored) .env file.
+os.environ.setdefault("SUPPORTED_LANGUAGES", "en,ar")
 
 import jwt
 import pytest

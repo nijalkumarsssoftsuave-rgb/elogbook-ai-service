@@ -1,15 +1,9 @@
 import math
-import re
 from collections import Counter
 
 from app.domain.models import RetrievedChunk
 from app.infrastructure.retrieval.fixture_corpus import DEFAULT_FIXTURE_CORPUS, FixtureDocument
-
-_TOKEN_RE = re.compile(r"[a-z0-9]+")
-
-
-def _tokenize(text: str) -> list[str]:
-    return _TOKEN_RE.findall(text.lower())
+from app.infrastructure.retrieval.text_normalization import tokenize
 
 
 class BM25KeywordRetriever:
@@ -18,6 +12,12 @@ class BM25KeywordRetriever:
     The scoring is genuine BM25, not a stub — only the corpus is a fixture, standing in
     for a real ingested index until the document pipeline exists. The index is built once
     at construction and reused for every query.
+
+    All languages share one index. Arabic and English share no tokens, so cross-language
+    matches score zero and drop out, but the Arabic documents do raise doc_count and
+    shift the average document length, which scales every English score (measured:
+    +20-35%, with rankings unchanged). If a future corpus ever moves an English *ranking*,
+    the fix is per-language BM25 statistics rather than splitting the retriever.
     """
 
     # Standard Okapi BM25 parameters: k1 controls term-frequency saturation, b controls
@@ -27,7 +27,9 @@ class BM25KeywordRetriever:
 
     def __init__(self, corpus: list[FixtureDocument] | None = None) -> None:
         self._corpus = list(DEFAULT_FIXTURE_CORPUS) if corpus is None else list(corpus)
-        tokenized = [_tokenize(document.text) for document in self._corpus]
+        # Index time. `search` runs the query through the same `tokenize`; that shared
+        # call is the only reason a normalized query term can match a document term.
+        tokenized = [tokenize(document.text) for document in self._corpus]
         self._term_frequencies = [Counter(tokens) for tokens in tokenized]
         self._doc_lengths = [len(tokens) for tokens in tokenized]
         self._avg_doc_length = (
@@ -45,23 +47,37 @@ class BM25KeywordRetriever:
             for term, freq in document_frequency.items()
         }
 
-    async def search(self, query_text: str, top_k: int = 5) -> list[RetrievedChunk]:
-        query_terms = _tokenize(query_text)
+    async def search(
+        self, query_text: str, top_k: int = 5, language: str | None = None
+    ) -> list[RetrievedChunk]:
+        query_terms = tokenize(query_text)  # Query time. Same function as index time.
         scores = [self._score(index, query_terms) for index in range(len(self._corpus))]
         ranked = sorted(range(len(self._corpus)), key=lambda index: scores[index], reverse=True)
 
         results: list[RetrievedChunk] = []
-        for index in ranked[:top_k]:
+        for index in ranked:
+            if len(results) == top_k:
+                break
             if scores[index] <= 0:
                 continue  # no query term matched this document
             document = self._corpus[index]
+            # Scoring stays global (one index, one set of corpus statistics); only the
+            # results are restricted. The two corpora share tokens -- ASCII digits from
+            # timestamps, Latin acronyms -- so without this an English question about
+            # "aisle 7" surfaces the Arabic near-miss report.
+            if language is not None and document.language != language:
+                continue
             results.append(
                 RetrievedChunk(
                     chunk_id=document.chunk_id,
                     document_id=document.document_id,
                     text=document.text,
                     score=scores[index],
-                    metadata={**document.metadata, "source": "bm25"},
+                    metadata={
+                        **document.metadata,
+                        "source": "bm25",
+                        "language": document.language,
+                    },
                 )
             )
         return results

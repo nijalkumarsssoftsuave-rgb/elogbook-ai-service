@@ -6,4 +6,7 @@ __pycache__/
 .ruff_cache/
 .env
 
+# Ad-hoc evaluation runs. The committed snapshots live in tests/eval/baseline/.
+tests/eval/reports/
+
 Claude-session/
