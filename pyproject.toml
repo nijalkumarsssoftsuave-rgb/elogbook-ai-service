@@ -1,0 +1,48 @@
+[project]
+name = "elogbook-ai-service"
+version = "0.1.0"
+description = "AI/ML backend for the E-Logbook platform (RAG QA, guardrails, orchestration)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.4",
+    "uvicorn[standard]>=0.30",
+    "pyjwt>=2.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "bandit>=1.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body", "fastapi.Header"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
