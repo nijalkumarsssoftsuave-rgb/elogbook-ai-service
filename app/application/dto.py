@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from app.domain.models import Citation, GroundedAnswer
+from app.domain.models import Citation, GroundedAnswer, Transcript
 
 
 class QueryRequestDTO(BaseModel):
@@ -29,3 +29,30 @@ class QueryResultDTO(BaseModel):
             refused=answer.refused,
             cache_hit=cache_hit,
         )
+
+
+class TranscribeRequestDTO(BaseModel):
+    """A voice question as it arrives from the transport: raw upload facts plus the same
+    caller context a typed query carries.
+    """
+
+    audio_bytes: bytes = Field(repr=False)
+    filename: str
+    content_type: str
+    language_hint: str | None = None
+    user_id: str
+    roles: list[str] = Field(default_factory=list)
+    correlation_id: str
+    top_k: int = 5
+
+
+class TranscribeResultDTO(BaseModel):
+    """What we heard, and the grounded answer to it.
+
+    The transcript is returned alongside the answer rather than discarded: a caller needs
+    to show the user what was understood, and a wrong answer to a misheard question is
+    otherwise impossible to diagnose.
+    """
+
+    transcript: Transcript
+    answer: QueryResultDTO

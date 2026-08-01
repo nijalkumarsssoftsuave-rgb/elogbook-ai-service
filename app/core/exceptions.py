@@ -7,7 +7,15 @@ from starlette.responses import JSONResponse
 
 from app.api.schemas.envelope import ApiResponse, ErrorDetail
 from app.core.correlation import get_correlation_id
-from app.domain.exceptions import UnsupportedLanguageError
+from app.domain.exceptions import AudioRejectionReason, InvalidAudioError, UnsupportedLanguageError
+
+# An oversized upload gets 413 rather than a plain 400 so a client can tell "this file is
+# too big" from "this file is the wrong kind" by status alone, and knows not to retry the
+# same bytes. Every other audio rejection is an ordinary bad request.
+_AUDIO_REJECTION_STATUS: dict[AudioRejectionReason, int] = {
+    AudioRejectionReason.FILE_TOO_LARGE: 413,
+}
+_DEFAULT_AUDIO_REJECTION_STATUS = 400
 
 
 def error_response(
@@ -37,6 +45,17 @@ async def unsupported_language_exception_handler(
         code="UNSUPPORTED_LANGUAGE",
         message=str(exc),
         details={"language_code": exc.language_code, "supported_languages": exc.supported_languages},
+    )
+
+
+async def invalid_audio_exception_handler(
+    request: Request, exc: InvalidAudioError
+) -> JSONResponse:
+    return error_response(
+        status_code=_AUDIO_REJECTION_STATUS.get(exc.reason, _DEFAULT_AUDIO_REJECTION_STATUS),
+        code="INVALID_AUDIO",
+        message=str(exc),
+        details={"reason": exc.reason.value, **exc.details},
     )
 
 

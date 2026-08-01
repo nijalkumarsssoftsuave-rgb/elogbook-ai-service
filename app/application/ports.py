@@ -1,10 +1,29 @@
 from typing import Protocol
 
-from app.domain.models import DetectedLanguage, Embedding, GroundedAnswer, Question, RetrievedChunk
+from app.domain.models import (
+    AudioRequest,
+    DetectedLanguage,
+    Embedding,
+    GroundedAnswer,
+    Question,
+    RetrievedChunk,
+    Transcript,
+)
 
 
 class LanguageDetectorPort(Protocol):
     async def detect(self, text: str) -> DetectedLanguage: ...
+
+
+class SpeechToTextPort(Protocol):
+    """Turns recorded audio into text.
+
+    The whole `AudioRequest` is passed rather than raw bytes because a real engine needs
+    the surrounding facts too: the declared format to pick a decoder, and the language
+    hint to skip its own language-identification pass.
+    """
+
+    async def transcribe(self, audio: AudioRequest) -> Transcript: ...
 
 
 class EmbeddingPort(Protocol):
