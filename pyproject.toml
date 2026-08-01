@@ -13,6 +13,12 @@ dependencies = [
     "python-multipart>=0.0.9",
 ]
 
+[project.optional-dependencies]
+# The speech stack (ctranslate2, onnxruntime, PyAV, numpy) is several hundred megabytes
+# and only needed where STT_BACKEND=faster_whisper actually runs. Install with
+# `uv sync --extra stt`; the default install serves /stt/transcribe from the stub.
+stt = ["faster-whisper>=1.2"]
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",
@@ -48,6 +54,12 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "f
 python_version = "3.11"
 strict = true
 plugins = ["pydantic.mypy"]
+
+# Absent from the default install (see the `stt` extra), so its lazy import in
+# FasterWhisperAdapter has no stubs to check against.
+[[tool.mypy.overrides]]
+module = "faster_whisper.*"
+ignore_missing_imports = true
 
 [tool.bandit]
 exclude_dirs = ["tests"]

@@ -7,7 +7,13 @@ from starlette.responses import JSONResponse
 
 from app.api.schemas.envelope import ApiResponse, ErrorDetail
 from app.core.correlation import get_correlation_id
-from app.domain.exceptions import AudioRejectionReason, InvalidAudioError, UnsupportedLanguageError
+from app.domain.exceptions import (
+    AudioRejectionReason,
+    InvalidAudioError,
+    TranscriptionFailedError,
+    TranscriptionFailureReason,
+    UnsupportedLanguageError,
+)
 
 # An oversized upload gets 413 rather than a plain 400 so a client can tell "this file is
 # too big" from "this file is the wrong kind" by status alone, and knows not to retry the
@@ -16,6 +22,13 @@ _AUDIO_REJECTION_STATUS: dict[AudioRejectionReason, int] = {
     AudioRejectionReason.FILE_TOO_LARGE: 413,
 }
 _DEFAULT_AUDIO_REJECTION_STATUS = 400
+
+# Both mean "the audio was fine, we were not" -- so both are retryable, and the split
+# tells a client whether the engine is down or merely slow.
+_TRANSCRIPTION_FAILURE_STATUS: dict[TranscriptionFailureReason, int] = {
+    TranscriptionFailureReason.MODEL_UNAVAILABLE: 503,
+    TranscriptionFailureReason.TIMEOUT: 504,
+}
 
 
 def error_response(
@@ -54,6 +67,17 @@ async def invalid_audio_exception_handler(
     return error_response(
         status_code=_AUDIO_REJECTION_STATUS.get(exc.reason, _DEFAULT_AUDIO_REJECTION_STATUS),
         code="INVALID_AUDIO",
+        message=str(exc),
+        details={"reason": exc.reason.value, **exc.details},
+    )
+
+
+async def transcription_failed_exception_handler(
+    request: Request, exc: TranscriptionFailedError
+) -> JSONResponse:
+    return error_response(
+        status_code=_TRANSCRIPTION_FAILURE_STATUS[exc.reason],
+        code="TRANSCRIPTION_FAILED",
         message=str(exc),
         details={"reason": exc.reason.value, **exc.details},
     )

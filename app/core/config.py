@@ -49,6 +49,21 @@ class Settings(BaseSettings):
         default_factory=lambda: list(_DEFAULT_AUDIO_CONTENT_TYPES)
     )
 
+    # Which speech adapter serves /stt/transcribe. Defaults to the stub so a plain
+    # checkout runs without the multi-gigabyte model stack; set to "faster_whisper" on a
+    # machine that has it (`uv sync --extra stt`).
+    stt_backend: str = "stub"
+    # A model size name that faster-whisper resolves against HuggingFace, or a path to a
+    # locally staged model directory.
+    stt_model: str = "large-v3-turbo"
+    stt_device: str = "auto"
+    stt_compute_type: str = "default"
+    stt_timeout_seconds: float = 120.0
+    # Air-gapped deployment (see CLAUDE.md): with local_files_only the model must already
+    # be present under download_root, and faster-whisper never reaches for the network.
+    stt_local_files_only: bool = False
+    stt_download_root: str | None = None
+
     @field_validator("supported_languages", "stt_allowed_content_types", mode="before")
     @classmethod
     def _parse_csv_list(cls, value: Any) -> Any:

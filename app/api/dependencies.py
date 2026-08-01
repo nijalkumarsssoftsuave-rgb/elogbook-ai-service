@@ -25,6 +25,7 @@ from app.application.stt_service import STTApplicationService
 from app.application.transcription_service import TranscriptionService
 from app.core.config import Settings, get_settings
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
+from app.infrastructure.model_serving.speech.faster_whisper_adapter import FasterWhisperAdapter
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.cache_stub import CacheStub
@@ -37,6 +38,9 @@ from app.infrastructure.stubs.vector_store_stub import VectorStoreStub
 
 # Ports: one cached factory each. Swapping a stub for a real adapter is a one-line
 # change here and nothing downstream moves.
+
+_STUB_BACKEND = "stub"
+_FASTER_WHISPER_BACKEND = "faster_whisper"
 
 
 @lru_cache
@@ -84,9 +88,40 @@ def get_audit_port() -> AuditPort:
     return AuditStub()
 
 
+def build_speech_to_text_port(settings: Settings) -> SpeechToTextPort:
+    """Picks the speech adapter named by STT_BACKEND.
+
+    Kept as a plain function taking explicit Settings rather than folded into the cached
+    factory below: the factory reads get_settings() internally, so exercising the other
+    branch would mean clearing an lru_cache, which leaks across a test session and makes
+    test order matter.
+
+    An unknown value raises instead of falling back to the stub. Silently serving canned
+    text because someone typoed the backend name is the kind of failure that gets noticed
+    in a demo rather than in a log.
+    """
+    if settings.stt_backend == _STUB_BACKEND:
+        return SpeechToTextStub()
+    if settings.stt_backend == _FASTER_WHISPER_BACKEND:
+        # Constructing this does not load the model -- that happens lazily on the first
+        # transcription, so a missing model cannot stop the service from starting.
+        return FasterWhisperAdapter(
+            model_name=settings.stt_model,
+            device=settings.stt_device,
+            compute_type=settings.stt_compute_type,
+            timeout_seconds=settings.stt_timeout_seconds,
+            local_files_only=settings.stt_local_files_only,
+            download_root=settings.stt_download_root,
+        )
+    raise ValueError(
+        f"Unknown STT_BACKEND '{settings.stt_backend}'. "
+        f"Expected one of: {_STUB_BACKEND}, {_FASTER_WHISPER_BACKEND}."
+    )
+
+
 @lru_cache
 def get_speech_to_text_port() -> SpeechToTextPort:
-    return SpeechToTextStub()
+    return build_speech_to_text_port(get_settings())
 
 
 # Services: composed per request from the cached ports above.
