@@ -4,10 +4,16 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class DetectedLanguage(BaseModel):
+    code: str
+    confidence: float
+
+
 class Question(BaseModel):
     text: str
     user_id: str
     roles: list[str] = Field(default_factory=list)
+    language: str
     asked_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
