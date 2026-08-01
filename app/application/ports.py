@@ -20,9 +20,19 @@ class VectorStorePort(Protocol):
 
 
 class KeywordRetrieverPort(Protocol):
-    """Sparse (keyword) retrieval, e.g. BM25."""
+    """Sparse (keyword) retrieval, e.g. BM25.
 
-    async def search(self, query_text: str, top_k: int = 5) -> list[RetrievedChunk]: ...
+    `language` restricts the search to documents in that language. It exists because a
+    mixed-language keyword index genuinely matches across languages on shared tokens --
+    ASCII digits in timestamps, Latin acronyms like HVAC -- which would otherwise let
+    Arabic documents surface for English questions. Passing it down rather than
+    filtering results afterwards is what a real backend (OpenSearch, Milvus) needs in
+    order to apply the restriction server-side instead of over-fetching and discarding.
+    """
+
+    async def search(
+        self, query_text: str, top_k: int = 5, language: str | None = None
+    ) -> list[RetrievedChunk]: ...
 
 
 class RerankerPort(Protocol):

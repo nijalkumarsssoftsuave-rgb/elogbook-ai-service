@@ -1,0 +1,143 @@
+{
+  "name": "logbook_qa_ar",
+  "language": "ar",
+  "version": "1",
+  "description": "Arabic retrieval evaluation, case-for-case parallel to logbook_qa_en v1 over the Arabic fixture entries (log-ar-001..log-ar-008). Every case carries parallel_case_id so English and Arabic accuracy are compared question-for-question, not only in aggregate.",
+  "cases": [
+    {
+      "case_id": "ar-001",
+      "query": "هل تم فحص الحزام الناقل في الخط الثاني خلال وردية الصباح؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-001"],
+      "tags": ["single_source"],
+      "parallel_case_id": "en-001",
+      "expected_answer_note": "Yes - the morning shift check found no anomalies; guards in place and lubrication nominal."
+    },
+    {
+      "case_id": "ar-002",
+      "query": "ماذا حدث قرب رصيف التحميل؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-002"],
+      "tags": ["single_source"],
+      "parallel_case_id": "en-002",
+      "expected_answer_note": "A minor slip at 14:32; no injuries; area cordoned off with wet floor signage."
+    },
+    {
+      "case_id": "ar-003",
+      "query": "ما هي قراءة ضغط الغلاية عند تسليم الوردية؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-003"],
+      "tags": ["single_source"],
+      "parallel_case_id": "en-003",
+      "expected_answer_note": "Boiler 3 stable at 145 psi at the night-to-day handover."
+    },
+    {
+      "case_id": "ar-004",
+      "query": "هل تم فحص طفايات الحريق في منطقة المستودع؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-004"],
+      "tags": ["single_source"],
+      "parallel_case_id": "en-004",
+      "expected_answer_note": "Yes - inspected and tagged current during the zone B safety walk; exits clear."
+    },
+    {
+      "case_id": "ar-005",
+      "query": "أي ماكينة تم استبدال حزام الإدارة فيها؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-005"],
+      "tags": ["single_source"],
+      "parallel_case_id": "en-005",
+      "expected_answer_note": "Packaging machine 4; tested and back in service at 09:15."
+    },
+    {
+      "case_id": "ar-006",
+      "query": "ما سبب إنذار الحريق أثناء الوردية الليلية؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-006"],
+      "tags": ["single_source"],
+      "parallel_case_id": "en-006",
+      "expected_answer_note": "Dust buildup near the server room at 02:47; confirmed a false alarm."
+    },
+    {
+      "case_id": "ar-007",
+      "query": "من زار الموقع لفحص HVAC؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-007"],
+      "tags": ["single_source"],
+      "parallel_case_id": "en-007",
+      "expected_answer_note": "A contractor team escorted by facilities staff, 10:00 to 11:30."
+    },
+    {
+      "case_id": "ar-008",
+      "query": "صف حادث الرافعة الشوكية في الممر رقم 7",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-008"],
+      "tags": ["single_source"],
+      "parallel_case_id": "en-008",
+      "expected_answer_note": "A forklift narrowly avoided a pedestrian; mirrors and refresher training recommended."
+    },
+    {
+      "case_id": "ar-009",
+      "query": "ما القيود التي تصف حوادث السلامة المتعلقة بالأشخاص؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-002", "log-ar-008"],
+      "tags": ["multi_source", "morphology"],
+      "parallel_case_id": "en-009",
+      "expected_answer_note": "The loading dock slip and the aisle 7 forklift near-miss. Uses the plural 'حوادث' against the singular 'حادث' in both entries; with no stemming that is a genuine miss, mirroring en-009."
+    },
+    {
+      "case_id": "ar-010",
+      "query": "ما أعمال الصيانة التي تمت وما هو المعلق منها؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-003", "log-ar-005"],
+      "tags": ["multi_source"],
+      "parallel_case_id": "en-010",
+      "expected_answer_note": "Drive belt replaced on packaging machine 4; no outstanding maintenance requests at handover."
+    },
+    {
+      "case_id": "ar-011",
+      "query": "هل سقط أحد العمال قرب ساحة التسليم؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-002"],
+      "tags": ["paraphrase"],
+      "parallel_case_id": "en-011",
+      "expected_answer_note": "Yes - a minor slip near the loading dock. Deliberately uses 'سقط' and 'ساحة التسليم' where the entry says 'انزلاق' and 'رصيف التحميل', so keyword retrieval has almost nothing to match on."
+    },
+    {
+      "case_id": "ar-012",
+      "query": "لماذا انطلقت صافرة الطوارئ قبل الفجر؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-006"],
+      "tags": ["paraphrase"],
+      "parallel_case_id": "en-012",
+      "expected_answer_note": "Dust near the server room set off the alarm at 02:47. Uses 'صافرة الطوارئ' where the entry says 'إنذار الحريق', mirroring en-012."
+    },
+    {
+      "case_id": "ar-013",
+      "query": "ماذا سجلت الوردية الليلية؟",
+      "language": "ar",
+      "relevant_chunk_ids": ["log-ar-003", "log-ar-006"],
+      "tags": ["multi_source"],
+      "parallel_case_id": "en-013",
+      "expected_answer_note": "The 02:47 false fire alarm, and the handover note recording Boiler 3 stable at 145 psi."
+    },
+    {
+      "case_id": "ar-014",
+      "query": "ما هي سياسة إجازة الأمومة في الشركة؟",
+      "language": "ar",
+      "relevant_chunk_ids": [],
+      "tags": ["out_of_corpus"],
+      "parallel_case_id": "en-014",
+      "expected_answer_note": "Nothing in the logbook covers HR policy, so the service should decline. It does not today - the dense stub always supplies a chunk."
+    },
+    {
+      "case_id": "ar-015",
+      "query": "كيف أعيد تعيين كلمة مرور الرواتب؟",
+      "language": "ar",
+      "relevant_chunk_ids": [],
+      "tags": ["out_of_corpus"],
+      "parallel_case_id": "en-015",
+      "expected_answer_note": "No corpus term matches, so BM25 returns nothing. The service should decline; today it answers from the dense stub's chunk."
+    }
+  ]
+}

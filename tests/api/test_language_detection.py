@@ -26,6 +26,6 @@ def test_query_rejects_unsupported_language(app: FastAPI, auth_headers: dict[str
     assert body["data"] is None
     assert body["error"]["code"] == "UNSUPPORTED_LANGUAGE"
     assert body["error"]["details"]["language_code"] == "fr"
-    assert body["error"]["details"]["supported_languages"] == ["en"]
+    assert body["error"]["details"]["supported_languages"] == ["en", "ar"]
     assert body["correlation_id"]
     assert response.headers["X-Correlation-ID"] == body["correlation_id"]

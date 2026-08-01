@@ -29,9 +29,13 @@ class FakeKeywordRetriever:
     def __init__(self, calls: list[str], chunks: list[RetrievedChunk] | None = None) -> None:
         self.calls = calls
         self._chunks = chunks
+        self.received_language: str | None = None
 
-    async def search(self, query_text: str, top_k: int = 5) -> list[RetrievedChunk]:
+    async def search(
+        self, query_text: str, top_k: int = 5, language: str | None = None
+    ) -> list[RetrievedChunk]:
         self.calls.append("sparse_search")
+        self.received_language = language
         if self._chunks is not None:
             return self._chunks
         return [RetrievedChunk(chunk_id="shared-1", document_id="d1", text="sparse", score=5.0)]
@@ -117,3 +121,20 @@ async def test_retrieve_over_fetches_candidates_beyond_the_requested_top_k() -> 
     await service.retrieve(_question(), top_k=3)
 
     assert vector_store.received_top_k == RetrievalService._CANDIDATE_POOL_SIZE
+
+
+async def test_retrieve_restricts_keyword_search_to_the_question_language() -> None:
+    """The keyword index is mixed-language and matches across languages on shared tokens,
+    so the question's language has to reach the retriever.
+    """
+    calls: list[str] = []
+    keyword_retriever = FakeKeywordRetriever(calls)
+    service = RetrievalService(
+        FakeEmbedding(calls), FakeVectorStore(calls), keyword_retriever, FakeReranker(calls)
+    )
+
+    await service.retrieve(
+        Question(text="q", user_id="u1", language="ar"), top_k=5
+    )
+
+    assert keyword_retriever.received_language == "ar"

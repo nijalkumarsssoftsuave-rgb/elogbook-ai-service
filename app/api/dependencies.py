@@ -21,12 +21,12 @@ from app.application.ports import (
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
 from app.core.config import Settings, get_settings
+from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.cache_stub import CacheStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
 from app.infrastructure.stubs.guardrail_stub import GuardrailStub
-from app.infrastructure.stubs.language_detector_stub import LanguageDetectorStub
 from app.infrastructure.stubs.model_client_stub import ModelClientStub
 from app.infrastructure.stubs.reranker_stub import RerankerStub
 from app.infrastructure.stubs.vector_store_stub import VectorStoreStub
@@ -37,7 +37,7 @@ from app.infrastructure.stubs.vector_store_stub import VectorStoreStub
 
 @lru_cache
 def get_language_detector_port() -> LanguageDetectorPort:
-    return LanguageDetectorStub()
+    return ScriptLanguageDetector()
 
 
 @lru_cache

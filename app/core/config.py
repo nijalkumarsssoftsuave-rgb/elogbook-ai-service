@@ -10,7 +10,11 @@ class Settings(BaseSettings):
 
     service_jwt_secret: str
     service_jwt_algorithm: str = "HS256"
-    supported_languages: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["en"])
+    # Both languages are genuinely supported, so a missing env var should not silently
+    # disable a shipped capability.
+    supported_languages: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["en", "ar"]
+    )
 
     @field_validator("supported_languages", mode="before")
     @classmethod

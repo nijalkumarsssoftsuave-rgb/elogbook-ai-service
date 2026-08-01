@@ -53,7 +53,9 @@ class FakeKeywordRetriever:
     def __init__(self, calls: list[str]) -> None:
         self.calls = calls
 
-    async def search(self, query_text: str, top_k: int = 5) -> list[RetrievedChunk]:
+    async def search(
+        self, query_text: str, top_k: int = 5, language: str | None = None
+    ) -> list[RetrievedChunk]:
         self.calls.append("retrieve")
         return [EVIDENCE]
 

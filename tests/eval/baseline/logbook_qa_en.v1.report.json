@@ -1,0 +1,1707 @@
+{
+  "dataset_name": "logbook_qa_en",
+  "dataset_version": "1",
+  "language": "en",
+  "top_k": 5,
+  "k_values": [
+    1,
+    3,
+    5
+  ],
+  "case_count": 15,
+  "corpus_size": 16,
+  "corpus_languages": [
+    "ar",
+    "en"
+  ],
+  "generated_at": null,
+  "retrieval": {
+    "keyword_only": [
+      {
+        "k": 1,
+        "case_count": 13,
+        "hit_rate_at_k": 0.6923076923076923,
+        "recall_at_k": 0.6153846153846154,
+        "precision_at_k": 0.6923076923076923,
+        "mrr_at_k": 0.6923076923076923,
+        "ndcg_at_k": 0.6923076923076923
+      },
+      {
+        "k": 3,
+        "case_count": 13,
+        "hit_rate_at_k": 0.8461538461538461,
+        "recall_at_k": 0.8461538461538461,
+        "precision_at_k": 0.3333333333333333,
+        "mrr_at_k": 0.7692307692307693,
+        "ndcg_at_k": 0.7831984843300848
+      },
+      {
+        "k": 5,
+        "case_count": 13,
+        "hit_rate_at_k": 0.9230769230769231,
+        "recall_at_k": 0.9230769230769231,
+        "precision_at_k": 0.2153846153846154,
+        "mrr_at_k": 0.7884615384615384,
+        "ndcg_at_k": 0.8163274503357305
+      }
+    ],
+    "retrieval_raw": [
+      {
+        "k": 1,
+        "case_count": 13,
+        "hit_rate_at_k": 0.0,
+        "recall_at_k": 0.0,
+        "precision_at_k": 0.0,
+        "mrr_at_k": 0.0,
+        "ndcg_at_k": 0.0
+      },
+      {
+        "k": 3,
+        "case_count": 13,
+        "hit_rate_at_k": 0.8461538461538461,
+        "recall_at_k": 0.8076923076923077,
+        "precision_at_k": 0.3076923076923077,
+        "mrr_at_k": 0.39743589743589747,
+        "ndcg_at_k": 0.4997528835270781
+      },
+      {
+        "k": 5,
+        "case_count": 13,
+        "hit_rate_at_k": 0.9230769230769231,
+        "recall_at_k": 0.9230769230769231,
+        "precision_at_k": 0.2153846153846154,
+        "mrr_at_k": 0.4128205128205128,
+        "ndcg_at_k": 0.5498237242814729
+      }
+    ]
+  },
+  "contract": {
+    "case_count": 15,
+    "answerable_case_count": 13,
+    "out_of_corpus_case_count": 2,
+    "grounded_rate": 1.0,
+    "refusal_rate": 0.0,
+    "citation_validity_rate": 1.0,
+    "citation_corpus_coverage": 0.7580645161290323,
+    "cited_relevant_rate": 0.9230769230769231,
+    "correct_refusal_rate": 0.0,
+    "false_refusal_rate": 0.0,
+    "empty_retrieval_rate": 0.0
+  },
+  "answer_quality": {
+    "computed": false,
+    "judge_model": null,
+    "faithfulness": null,
+    "answer_relevancy": null,
+    "context_precision": null,
+    "context_recall": null
+  },
+  "case_results": [
+    {
+      "case_id": "en-001",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-001",
+        "log-006",
+        "log-002",
+        "log-005",
+        "log-003"
+      ],
+      "relevant_chunk_ids": [
+        "log-001"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 1.0,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-001",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-001",
+        "log-006",
+        "log-002",
+        "log-005"
+      ],
+      "relevant_chunk_ids": [
+        "log-001"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-002",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-002",
+        "log-006",
+        "log-008"
+      ],
+      "relevant_chunk_ids": [
+        "log-002"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 1.0,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-002",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-002",
+        "log-006",
+        "log-008"
+      ],
+      "relevant_chunk_ids": [
+        "log-002"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-003",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-003",
+        "log-006",
+        "log-002",
+        "log-005",
+        "log-007"
+      ],
+      "relevant_chunk_ids": [
+        "log-003"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 1.0,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-003",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-003",
+        "log-006",
+        "log-002",
+        "log-005"
+      ],
+      "relevant_chunk_ids": [
+        "log-003"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-004",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-004",
+        "log-006",
+        "log-008",
+        "log-001",
+        "log-002"
+      ],
+      "relevant_chunk_ids": [
+        "log-004"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 1.0,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-004",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-004",
+        "log-006",
+        "log-008",
+        "log-001"
+      ],
+      "relevant_chunk_ids": [
+        "log-004"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-005",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-005",
+        "log-001"
+      ],
+      "relevant_chunk_ids": [
+        "log-005"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 1.0,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-005",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-005",
+        "log-001"
+      ],
+      "relevant_chunk_ids": [
+        "log-005"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-006",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-006",
+        "log-002",
+        "log-003",
+        "log-004",
+        "log-001"
+      ],
+      "relevant_chunk_ids": [
+        "log-006"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 1.0,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-006",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-002",
+        "log-003",
+        "log-004"
+      ],
+      "relevant_chunk_ids": [
+        "log-006"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-007",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-006",
+        "log-007",
+        "log-002"
+      ],
+      "relevant_chunk_ids": [
+        "log-007"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-007",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-007",
+        "log-002"
+      ],
+      "relevant_chunk_ids": [
+        "log-007"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.3333333333333333,
+          "ndcg": 0.5
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.3333333333333333,
+          "ndcg": 0.5
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-008",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-008",
+        "log-006",
+        "log-002",
+        "log-001"
+      ],
+      "relevant_chunk_ids": [
+        "log-008"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 1.0,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-008",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-008",
+        "log-006",
+        "log-002",
+        "log-001"
+      ],
+      "relevant_chunk_ids": [
+        "log-008"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-009",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-004",
+        "log-001"
+      ],
+      "relevant_chunk_ids": [
+        "log-002",
+        "log-008"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-009",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-004",
+        "log-001"
+      ],
+      "relevant_chunk_ids": [
+        "log-002",
+        "log-008"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-010",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-003",
+        "log-005",
+        "log-004",
+        "log-008",
+        "log-001",
+        "log-002"
+      ],
+      "relevant_chunk_ids": [
+        "log-003",
+        "log-005"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 1.0,
+          "recall": 0.5,
+          "precision": 1.0,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.6666666666666666,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.4,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-010",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-003",
+        "log-005",
+        "log-004",
+        "log-008"
+      ],
+      "relevant_chunk_ids": [
+        "log-003",
+        "log-005"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.6666666666666666,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6934264036172708
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.4,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6934264036172708
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-011",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-006",
+        "log-008",
+        "log-007",
+        "log-002"
+      ],
+      "relevant_chunk_ids": [
+        "log-002"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.25,
+          "ndcg": 0.43067655807339306
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-011",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-008",
+        "log-007",
+        "log-002"
+      ],
+      "relevant_chunk_ids": [
+        "log-002"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.2,
+          "ndcg": 0.38685280723454163
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-012",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-004",
+        "log-006",
+        "log-002"
+      ],
+      "relevant_chunk_ids": [
+        "log-006"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6309297535714575
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-012",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-004",
+        "log-006",
+        "log-002"
+      ],
+      "relevant_chunk_ids": [
+        "log-006"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.3333333333333333,
+          "ndcg": 0.5
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.2,
+          "reciprocal_rank": 0.3333333333333333,
+          "ndcg": 0.5
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-013",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-006",
+        "log-002",
+        "log-003",
+        "log-008",
+        "log-001"
+      ],
+      "relevant_chunk_ids": [
+        "log-003",
+        "log-006"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 1.0,
+          "recall": 0.5,
+          "precision": 1.0,
+          "reciprocal_rank": 1.0,
+          "ndcg": 1.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.6666666666666666,
+          "reciprocal_rank": 1.0,
+          "ndcg": 0.9197207891481876
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.4,
+          "reciprocal_rank": 1.0,
+          "ndcg": 0.9197207891481876
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-013",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-002",
+        "log-003",
+        "log-008"
+      ],
+      "relevant_chunk_ids": [
+        "log-003",
+        "log-006"
+      ],
+      "metrics": [
+        {
+          "k": 1,
+          "hit_rate": 0.0,
+          "recall": 0.0,
+          "precision": 0.0,
+          "reciprocal_rank": 0.0,
+          "ndcg": 0.0
+        },
+        {
+          "k": 3,
+          "hit_rate": 1.0,
+          "recall": 0.5,
+          "precision": 0.3333333333333333,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.38685280723454163
+        },
+        {
+          "k": 5,
+          "hit_rate": 1.0,
+          "recall": 1.0,
+          "precision": 0.4,
+          "reciprocal_rank": 0.5,
+          "ndcg": 0.6509209298071326
+        }
+      ],
+      "error": null
+    },
+    {
+      "case_id": "en-014",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [
+        "log-006",
+        "log-002"
+      ],
+      "relevant_chunk_ids": [],
+      "metrics": [],
+      "error": null
+    },
+    {
+      "case_id": "en-014",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-002"
+      ],
+      "relevant_chunk_ids": [],
+      "metrics": [],
+      "error": null
+    },
+    {
+      "case_id": "en-015",
+      "surface": "keyword_only",
+      "retrieved_chunk_ids": [],
+      "relevant_chunk_ids": [],
+      "metrics": [],
+      "error": null
+    },
+    {
+      "case_id": "en-015",
+      "surface": "retrieval_raw",
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1"
+      ],
+      "relevant_chunk_ids": [],
+      "metrics": [],
+      "error": null
+    }
+  ],
+  "contract_results": [
+    {
+      "case_id": "en-001",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-001",
+        "log-006",
+        "log-002",
+        "log-005"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-001",
+        "log-006",
+        "log-002",
+        "log-005"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 4,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-002",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-002",
+        "log-006",
+        "log-008"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-002",
+        "log-006",
+        "log-008"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 3,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-003",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-003",
+        "log-006",
+        "log-002",
+        "log-005"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-003",
+        "log-006",
+        "log-002",
+        "log-005"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 4,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-004",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-004",
+        "log-006",
+        "log-008",
+        "log-001"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-004",
+        "log-006",
+        "log-008",
+        "log-001"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 4,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-005",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-005",
+        "log-001"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-005",
+        "log-001"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 2,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-006",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-002",
+        "log-003",
+        "log-004"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-002",
+        "log-003",
+        "log-004"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 4,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-007",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-007",
+        "log-002"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-007",
+        "log-002"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 3,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-008",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-008",
+        "log-006",
+        "log-002",
+        "log-001"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-008",
+        "log-006",
+        "log-002",
+        "log-001"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 4,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-009",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-004",
+        "log-001"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-004",
+        "log-001"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 2,
+      "cited_any_relevant": false,
+      "error": null
+    },
+    {
+      "case_id": "en-010",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-003",
+        "log-005",
+        "log-004",
+        "log-008"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-003",
+        "log-005",
+        "log-004",
+        "log-008"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 4,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-011",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-008",
+        "log-007",
+        "log-002"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-008",
+        "log-007",
+        "log-002"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 4,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-012",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-004",
+        "log-006",
+        "log-002"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-004",
+        "log-006",
+        "log-002"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 3,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-013",
+      "expects_answer": true,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-002",
+        "log-003",
+        "log-008"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-002",
+        "log-003",
+        "log-008"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 4,
+      "cited_any_relevant": true,
+      "error": null
+    },
+    {
+      "case_id": "en-014",
+      "expects_answer": false,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-002"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1",
+        "log-006",
+        "log-002"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 2,
+      "cited_any_relevant": false,
+      "error": null
+    },
+    {
+      "case_id": "en-015",
+      "expects_answer": false,
+      "refused": false,
+      "is_grounded": true,
+      "retrieved_chunk_ids": [
+        "dense-stub-chunk-1"
+      ],
+      "citation_chunk_ids": [
+        "dense-stub-chunk-1"
+      ],
+      "citations_within_retrieved": true,
+      "citations_within_corpus": false,
+      "citations_resolving_to_corpus": 0,
+      "cited_any_relevant": false,
+      "error": null
+    }
+  ],
+  "threshold_outcomes": [
+    {
+      "metric_path": "keyword_only.k=1.hit_rate_at_k",
+      "floor": 0.65,
+      "ceiling": null,
+      "actual": 0.6923076923076923,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=1.recall_at_k",
+      "floor": 0.58,
+      "ceiling": null,
+      "actual": 0.6153846153846154,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=1.mrr_at_k",
+      "floor": 0.65,
+      "ceiling": null,
+      "actual": 0.6923076923076923,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=1.ndcg_at_k",
+      "floor": 0.65,
+      "ceiling": null,
+      "actual": 0.6923076923076923,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=3.hit_rate_at_k",
+      "floor": 0.8,
+      "ceiling": null,
+      "actual": 0.8461538461538461,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=3.recall_at_k",
+      "floor": 0.8,
+      "ceiling": null,
+      "actual": 0.8461538461538461,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=3.mrr_at_k",
+      "floor": 0.73,
+      "ceiling": null,
+      "actual": 0.7692307692307693,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=3.ndcg_at_k",
+      "floor": 0.74,
+      "ceiling": null,
+      "actual": 0.7831984843300848,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=5.hit_rate_at_k",
+      "floor": 0.88,
+      "ceiling": null,
+      "actual": 0.9230769230769231,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=5.recall_at_k",
+      "floor": 0.88,
+      "ceiling": null,
+      "actual": 0.9230769230769231,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=5.mrr_at_k",
+      "floor": 0.75,
+      "ceiling": null,
+      "actual": 0.7884615384615384,
+      "passed": true
+    },
+    {
+      "metric_path": "keyword_only.k=5.ndcg_at_k",
+      "floor": 0.78,
+      "ceiling": null,
+      "actual": 0.8163274503357305,
+      "passed": true
+    },
+    {
+      "metric_path": "retrieval_raw.k=3.hit_rate_at_k",
+      "floor": 0.8,
+      "ceiling": null,
+      "actual": 0.8461538461538461,
+      "passed": true
+    },
+    {
+      "metric_path": "retrieval_raw.k=3.recall_at_k",
+      "floor": 0.76,
+      "ceiling": null,
+      "actual": 0.8076923076923077,
+      "passed": true
+    },
+    {
+      "metric_path": "retrieval_raw.k=3.ndcg_at_k",
+      "floor": 0.46,
+      "ceiling": null,
+      "actual": 0.4997528835270781,
+      "passed": true
+    },
+    {
+      "metric_path": "retrieval_raw.k=5.hit_rate_at_k",
+      "floor": 0.88,
+      "ceiling": null,
+      "actual": 0.9230769230769231,
+      "passed": true
+    },
+    {
+      "metric_path": "retrieval_raw.k=5.recall_at_k",
+      "floor": 0.88,
+      "ceiling": null,
+      "actual": 0.9230769230769231,
+      "passed": true
+    },
+    {
+      "metric_path": "retrieval_raw.k=5.ndcg_at_k",
+      "floor": 0.51,
+      "ceiling": null,
+      "actual": 0.5498237242814729,
+      "passed": true
+    },
+    {
+      "metric_path": "contract.citation_validity_rate",
+      "floor": 1.0,
+      "ceiling": null,
+      "actual": 1.0,
+      "passed": true
+    },
+    {
+      "metric_path": "contract.cited_relevant_rate",
+      "floor": 0.88,
+      "ceiling": null,
+      "actual": 0.9230769230769231,
+      "passed": true
+    },
+    {
+      "metric_path": "contract.grounded_rate",
+      "floor": 1.0,
+      "ceiling": null,
+      "actual": 1.0,
+      "passed": true
+    },
+    {
+      "metric_path": "contract.false_refusal_rate",
+      "floor": null,
+      "ceiling": 0.0,
+      "actual": 0.0,
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "notes": [
+    "Answer quality is not measured: the LLM, embeddings, dense search and the reranker are stubs, so a score would measure the stub rather than the system.",
+    "rank 1 of retrieval_raw is always the dense stub's chunk, which caps MRR at 0.5 and pins precision@1 at 0.0 there. Use keyword_only for the retrieval number.",
+    "The service cannot currently refuse: the dense stub always supplies evidence, so citations always validate and correct_refusal_rate is structurally 0.0."
+  ]
+}
