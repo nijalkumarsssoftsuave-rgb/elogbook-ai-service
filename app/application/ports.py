@@ -1,6 +1,10 @@
 from typing import Protocol
 
-from app.domain.models import GroundedAnswer, Question, RetrievedChunk
+from app.domain.models import DetectedLanguage, GroundedAnswer, Question, RetrievedChunk
+
+
+class LanguageDetectorPort(Protocol):
+    async def detect(self, text: str) -> DetectedLanguage: ...
 
 
 class RetrieverPort(Protocol):

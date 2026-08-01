@@ -1,8 +1,21 @@
 import pytest
 
 from app.application.dto import QueryRequestDTO
+from app.application.language_detection_service import LanguageDetectionService
 from app.application.qa_service import QAApplicationService
-from app.domain.models import GroundedAnswer, RetrievedChunk
+from app.domain.exceptions import UnsupportedLanguageError
+from app.domain.models import DetectedLanguage, GroundedAnswer, RetrievedChunk
+
+
+class FakeLanguageDetector:
+    def __init__(self, calls: list[str], code: str = "en", confidence: float = 0.99) -> None:
+        self.calls = calls
+        self.code = code
+        self.confidence = confidence
+
+    async def detect(self, text: str) -> DetectedLanguage:
+        self.calls.append("detect")
+        return DetectedLanguage(code=self.code, confidence=self.confidence)
 
 
 class FakeRetriever:
@@ -78,11 +91,17 @@ async def test_execute_calls_ports_in_order_on_cache_miss(request_dto: QueryRequ
     guardrail = FakeGuardrail(calls)
     cache = FakeCache(calls, hit=None)
     audit = FakeAudit(calls)
+    language_detection = LanguageDetectionService(
+        detector=FakeLanguageDetector(calls), supported_languages=["en"]
+    )
 
-    service = QAApplicationService(retriever, model_client, guardrail, cache, audit)
+    service = QAApplicationService(
+        retriever, model_client, guardrail, cache, audit, language_detection
+    )
     result = await service.execute(request_dto)
 
     assert calls == [
+        "detect",
         "cache_get",
         "check_input",
         "retrieve",
@@ -108,10 +127,40 @@ async def test_execute_skips_retrieval_and_generation_on_cache_hit(
     guardrail = FakeGuardrail(calls)
     cache = FakeCache(calls, hit=cached_answer)
     audit = FakeAudit(calls)
+    language_detection = LanguageDetectionService(
+        detector=FakeLanguageDetector(calls), supported_languages=["en"]
+    )
 
-    service = QAApplicationService(retriever, model_client, guardrail, cache, audit)
+    service = QAApplicationService(
+        retriever, model_client, guardrail, cache, audit, language_detection
+    )
     result = await service.execute(request_dto)
 
-    assert calls == ["cache_get", "audit"]
+    assert calls == ["detect", "cache_get", "audit"]
     assert result.cache_hit is True
     assert result.answer_text == "cached answer"
+
+
+async def test_execute_rejects_unsupported_language_before_touching_other_ports(
+    request_dto: QueryRequestDTO,
+) -> None:
+    calls: list[str] = []
+    retriever = FakeRetriever(calls)
+    model_client = FakeModelClient(calls)
+    guardrail = FakeGuardrail(calls)
+    cache = FakeCache(calls, hit=None)
+    audit = FakeAudit(calls)
+    language_detection = LanguageDetectionService(
+        detector=FakeLanguageDetector(calls, code="fr", confidence=0.9),
+        supported_languages=["en"],
+    )
+
+    service = QAApplicationService(
+        retriever, model_client, guardrail, cache, audit, language_detection
+    )
+
+    with pytest.raises(UnsupportedLanguageError) as exc_info:
+        await service.execute(request_dto)
+
+    assert calls == ["detect"]
+    assert exc_info.value.language_code == "fr"

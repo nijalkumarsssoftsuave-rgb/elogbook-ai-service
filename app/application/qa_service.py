@@ -1,6 +1,7 @@
 import hashlib
 
 from app.application.dto import QueryRequestDTO, QueryResultDTO
+from app.application.language_detection_service import LanguageDetectionService
 from app.application.ports import (
     AuditPort,
     CachePort,
@@ -13,7 +14,7 @@ from app.domain.models import Question
 
 class QAApplicationService:
     """Orchestrates a QA query end-to-end, mirroring the request-flow in CLAUDE.md:
-    guardrail -> retrieval -> LLM -> citation/grounding -> cache + audit.
+    language detection -> guardrail -> retrieval -> LLM -> citation/grounding -> cache + audit.
     """
 
     def __init__(
@@ -23,15 +24,24 @@ class QAApplicationService:
         guardrail: GuardrailPort,
         cache: CachePort,
         audit: AuditPort,
+        language_detection: LanguageDetectionService,
     ) -> None:
         self._retriever = retriever
         self._model_client = model_client
         self._guardrail = guardrail
         self._cache = cache
         self._audit = audit
+        self._language_detection = language_detection
 
     async def execute(self, request: QueryRequestDTO) -> QueryResultDTO:
-        question = Question(text=request.query, user_id=request.user_id, roles=request.roles)
+        detected = await self._language_detection.detect_and_validate(request.query)
+
+        question = Question(
+            text=request.query,
+            user_id=request.user_id,
+            roles=request.roles,
+            language=detected.code,
+        )
         cache_key = self._build_cache_key(question)
 
         cached = await self._cache.get(cache_key)

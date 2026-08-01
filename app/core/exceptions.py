@@ -7,6 +7,7 @@ from starlette.responses import JSONResponse
 
 from app.api.schemas.envelope import ApiResponse, ErrorDetail
 from app.core.correlation import get_correlation_id
+from app.domain.exceptions import UnsupportedLanguageError
 
 
 def error_response(
@@ -25,6 +26,17 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         code="VALIDATION_ERROR",
         message="Request validation failed",
         details={"errors": jsonable_encoder(exc.errors())},
+    )
+
+
+async def unsupported_language_exception_handler(
+    request: Request, exc: UnsupportedLanguageError
+) -> JSONResponse:
+    return error_response(
+        status_code=400,
+        code="UNSUPPORTED_LANGUAGE",
+        message=str(exc),
+        details={"language_code": exc.language_code, "supported_languages": exc.supported_languages},
     )
 
 
