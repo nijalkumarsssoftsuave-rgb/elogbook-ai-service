@@ -1,23 +1,24 @@
-from app.domain.models import Citation, GroundedAnswer, Question, RetrievedChunk
+import re
+
+from app.domain.models import GroundedAnswer
+
+# Recovers the evidence ids the prompt actually offered, so the stub can cite them.
+_EVIDENCE_ID_PATTERN = re.compile(r"\[Evidence \d+ \| id=([^\]\s]+)\]")
 
 
 class ModelClientStub:
-    """Returns a fixed dummy answer. Stands in for the Qwen LLM client."""
+    """Returns a canned completion that cites every piece of evidence it was given.
+    Stands in for the Qwen model served via Cloudera AI Inference.
 
-    async def generate(
-        self, question: Question, context_chunks: list[RetrievedChunk]
-    ) -> GroundedAnswer:
-        return GroundedAnswer(
-            answer_text=f"This is a stub answer for: {question.text!r}",
-            citations=[
-                Citation(
-                    chunk_id=chunk.chunk_id,
-                    document_id=chunk.document_id,
-                    source_title="Stub Source",
-                    score=chunk.score,
-                )
-                for chunk in context_chunks
-            ],
-            confidence=0.5,
-            is_grounded=True,
-        )
+    Reading ids back out of the prompt keeps the whole downstream path — citation
+    parsing, validation, caching — genuinely exercisable in development. It is a
+    development shortcut, not something the real client will do.
+    """
+
+    async def generate(self, prompt: str) -> str:
+        chunk_ids = _EVIDENCE_ID_PATTERN.findall(prompt)
+        if not chunk_ids:
+            return GroundedAnswer.REFUSAL_TEXT
+
+        markers = " ".join(f"[[{chunk_id}]]" for chunk_id in chunk_ids)
+        return f"This is a stub answer grounded in the provided evidence. {markers}"
