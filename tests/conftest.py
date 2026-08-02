@@ -13,7 +13,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.api.dependencies import get_confidence_policy
 from app.main import create_app
+
+# The confidence policy the service actually ships, read the same way the API reads it.
+# Hand-written weights here would let the tested scoring drift away from the configured
+# one without a single test noticing.
+DEFAULT_CONFIDENCE_POLICY = get_confidence_policy()
 
 TEST_SECRET = os.environ["SERVICE_JWT_SECRET"]
 TEST_ALGORITHM = os.environ["SERVICE_JWT_ALGORITHM"]

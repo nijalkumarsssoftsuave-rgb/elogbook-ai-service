@@ -1,6 +1,9 @@
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
 from app.application.citation.citation_validator import CitationValidator
+from app.application.confidence.confidence_scoring_service import (
+    ConfidenceScoringService,
+)
 from app.application.dto import QueryRequestDTO, TranscribeRequestDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -37,6 +40,7 @@ VIEWER = PermissionScope.from_roles(["viewer"])
 # audio. A fake engine is layered over it here so `audio_duration_seconds` has a real value
 # to travel with; the real adapter is exercised against genuine audio separately.
 KNOWN_AUDIO_SECONDS = 11.0
+from tests.conftest import DEFAULT_CONFIDENCE_POLICY
 
 
 class RecordingAudit:
@@ -74,6 +78,7 @@ def _build(audit: RecordingAudit) -> tuple[QAApplicationService, STTApplicationS
         GenerationNode(ModelClientStub()),
         CitationResolver(),
         CitationValidator(),
+        ConfidenceScoringService(DEFAULT_CONFIDENCE_POLICY),
         AuditService(CacheStub(), audit),
     )
     stt_service = STTApplicationService(

@@ -1,6 +1,9 @@
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
 from app.application.citation.citation_validator import CitationValidator
+from app.application.confidence.confidence_scoring_service import (
+    ConfidenceScoringService,
+)
 from app.application.dto import QueryRequestDTO, QueryResultDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -30,6 +33,7 @@ class QAApplicationService:
         generation_node: GenerationNode,
         citation_resolver: CitationResolver,
         citation_validator: CitationValidator,
+        confidence_scoring_service: ConfidenceScoringService,
         audit_service: AuditService,
     ) -> None:
         self._language_detection = language_detection
@@ -38,6 +42,7 @@ class QAApplicationService:
         self._generation_node = generation_node
         self._citation_resolver = citation_resolver
         self._citation_validator = citation_validator
+        self._confidence_scoring_service = confidence_scoring_service
         self._audit_service = audit_service
 
     async def execute(self, request: QueryRequestDTO) -> QueryResultDTO:
@@ -64,7 +69,7 @@ class QAApplicationService:
         )
         chunks = await self._guardrail_service.screen_retrieved_chunks(chunks)
 
-        answer = await self._generate_and_validate(question, chunks)
+        answer = await self._generate_and_validate(question, chunks, request.top_k)
         answer = await self._guardrail_service.check_answer(answer)
 
         # Provenance is handed to the audit trail and nowhere else -- this service does not
@@ -75,7 +80,7 @@ class QAApplicationService:
         return QueryResultDTO.from_domain(answer, cache_hit=False)
 
     async def _generate_and_validate(
-        self, question: Question, chunks: list[RetrievedChunk]
+        self, question: Question, chunks: list[RetrievedChunk], requested_top_k: int
     ) -> GroundedAnswer:
         """Generates an answer, resolves its citations, and keeps it only if they hold up.
 
@@ -100,6 +105,14 @@ class QAApplicationService:
         for _ in range(self._MAX_GENERATION_ATTEMPTS):
             generated = await self._generation_node.generate(question, chunks)
             grounded = self._citation_resolver.resolve(generated, chunks)
-            if self._citation_validator.validate(generated, grounded, chunks).is_valid:
-                return grounded
+            validation = self._citation_validator.validate(generated, grounded, chunks)
+            if validation.is_valid:
+                confidence = self._confidence_scoring_service.score(
+                    chunks, requested_top_k, generated, validation
+                )
+                # Scored, recorded, and not acted on. A LOW band does not turn into a
+                # refusal here: the citations validated, so the answer is grounded, and
+                # deciding that a weakly supported grounded answer is worse than none is
+                # a policy call this ticket does not make.
+                return grounded.model_copy(update={"confidence": confidence.score})
         return GroundedAnswer.refusal()

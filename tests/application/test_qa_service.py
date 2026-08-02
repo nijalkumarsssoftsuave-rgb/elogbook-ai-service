@@ -3,6 +3,9 @@ import pytest
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
 from app.application.citation.citation_validator import CitationValidator
+from app.application.confidence.confidence_scoring_service import (
+    ConfidenceScoringService,
+)
 from app.application.dto import QueryRequestDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -36,6 +39,7 @@ EVIDENCE = RetrievedChunk(
     score=1.0,
     metadata={"source_title": "Morning Shift Equipment Log"},
 )
+from tests.conftest import DEFAULT_CONFIDENCE_POLICY
 
 
 class FakeLanguageDetector:
@@ -189,6 +193,7 @@ def _build_service(
         generation_node or GenerationNode(model_client=FakeModelClient(calls, completions)),
         CitationResolver(),
         CitationValidator(),
+        ConfidenceScoringService(DEFAULT_CONFIDENCE_POLICY),
         AuditService(cache, audit),
     )
 

@@ -3,6 +3,9 @@ import inspect
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
 from app.application.citation.citation_validator import CitationValidator
+from app.application.confidence.confidence_scoring_service import (
+    ConfidenceScoringService,
+)
 from app.application.dto import QueryRequestDTO, TranscribeRequestDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -26,6 +29,7 @@ from app.infrastructure.stubs.model_client_stub import ModelClientStub
 from app.infrastructure.stubs.reranker_stub import RerankerStub
 from app.infrastructure.stubs.speech_to_text_stub import SpeechToTextStub
 from app.infrastructure.stubs.vector_store_stub import VectorStoreStub
+from tests.conftest import DEFAULT_CONFIDENCE_POLICY
 
 SUPPORTED_LANGUAGES = ["en", "ar"]
 
@@ -74,6 +78,7 @@ def _build_qa_service(cache: RecordingCache) -> QAApplicationService:
         GenerationNode(ModelClientStub()),
         CitationResolver(),
         CitationValidator(),
+        ConfidenceScoringService(DEFAULT_CONFIDENCE_POLICY),
         AuditService(cache, AuditStub()),
     )
 

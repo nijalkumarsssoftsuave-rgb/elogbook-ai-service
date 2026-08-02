@@ -17,6 +17,9 @@ from dataclasses import dataclass
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
 from app.application.citation.citation_validator import CitationValidator
+from app.application.confidence.confidence_scoring_service import (
+    ConfidenceScoringService,
+)
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
 from app.application.permission.permission_resolver import PermissionResolver
@@ -36,6 +39,7 @@ from app.infrastructure.stubs.guardrail_stub import GuardrailStub
 from app.infrastructure.stubs.model_client_stub import ModelClientStub
 from app.infrastructure.stubs.reranker_stub import RerankerStub
 from app.infrastructure.stubs.vector_store_stub import VectorStoreStub
+from tests.conftest import DEFAULT_CONFIDENCE_POLICY
 
 # Every language the evaluation may ask about, passed explicitly. Deliberately NOT read
 # from Settings: `get_settings()` is lru_cached and reads the developer's .env, so an
@@ -84,6 +88,7 @@ def build_surfaces(corpus: list[FixtureDocument] | None = None) -> EvaluationSur
         GenerationNode(ModelClientStub()),
         CitationResolver(),
         CitationValidator(),
+        ConfidenceScoringService(DEFAULT_CONFIDENCE_POLICY),
         AuditService(CacheStub(), AuditStub()),
     )
     return EvaluationSurfaces(

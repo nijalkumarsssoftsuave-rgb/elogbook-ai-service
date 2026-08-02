@@ -64,6 +64,29 @@ class Settings(BaseSettings):
     stt_local_files_only: bool = False
     stt_download_root: str | None = None
 
+    # How an answer's confidence is scored. Configuration rather than constants because the
+    # right weighting depends on how good the deployment's retrieval actually is, and that
+    # is not something a default can know.
+    #
+    # The weights are relative and need not sum to one -- the score divides by the weights
+    # that applied. Retrieval and citations carry most of it: whether the evidence was found
+    # and whether the answer is traceable to it are the two questions that decide if an
+    # answer is worth anything. Ranking separation is a tie-breaker between answers that
+    # already pass both.
+    confidence_retrieval_weight: float = 0.4
+    confidence_reranker_weight: float = 0.2
+    confidence_citation_weight: float = 0.4
+    # Below refusal_threshold an answer is poorly supported; between the two it is usable
+    # but worth a human look. Deliberately wide apart, because the interesting band is the
+    # middle one and a deployment should have to narrow it on purpose.
+    #
+    # The review threshold sits above the 0.6 that perfect retrieval and a perfect ranking
+    # reach on their own. That is not arbitrary: with the weights above, an answer citing
+    # *nothing* scores exactly 0.6, and HIGH has to mean all three signals were good rather
+    # than two of three carrying an untraceable answer over the line.
+    confidence_refusal_threshold: float = 0.3
+    confidence_review_threshold: float = 0.7
+
     @field_validator("supported_languages", "stt_allowed_content_types", mode="before")
     @classmethod
     def _parse_csv_list(cls, value: Any) -> Any:
