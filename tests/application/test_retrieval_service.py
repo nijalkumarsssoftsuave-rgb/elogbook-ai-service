@@ -10,7 +10,7 @@ from app.domain.models import (
 )
 
 # The service is handed an already-resolved SearchScope; resolution itself is covered in
-# tests/infrastructure/test_permission_resolver.py, and the per-method retrievers live
+# tests/application/test_permission_resolver.py, and the per-method retrievers live
 # behind the multi-source retriever, covered in its own test module.
 
 ALL_SOURCES = [
