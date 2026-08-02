@@ -6,7 +6,7 @@ produce identical output apart from `generated_at`.
 """
 
 from app.application.dto import QueryRequestDTO
-from app.domain.models import Question
+from app.domain.models import PermissionScope, Question, RetrievalSearchContext
 from tests.eval import metrics
 from tests.eval.loader import LanguageThresholds
 from tests.eval.schema import (
@@ -83,7 +83,11 @@ class EvaluationRunner:
                 language=case.language,
             )
             chunks = await self._surfaces.retrieval_service.retrieve(
-                question, top_k=self._top_k
+                RetrievalSearchContext(
+                    question=question,
+                    permission_scope=PermissionScope.from_roles(self._roles),
+                    top_k=self._top_k,
+                )
             )
         return [chunk.chunk_id for chunk in chunks]
 
@@ -141,7 +145,11 @@ class EvaluationRunner:
             retrieved = [
                 chunk.chunk_id
                 for chunk in await self._surfaces.retrieval_service.retrieve(
-                    question, top_k=self._top_k
+                    RetrievalSearchContext(
+                        question=question,
+                        permission_scope=PermissionScope.from_roles(self._roles),
+                        top_k=self._top_k,
+                    )
                 )
             ]
             result = await self._surfaces.qa_service.execute(
@@ -151,6 +159,7 @@ class EvaluationRunner:
                     roles=self._roles,
                     correlation_id=f"eval-{case.case_id}",
                     top_k=self._top_k,
+                    permission_scope=PermissionScope.from_roles(self._roles),
                 )
             )
         except Exception as exc:  # noqa: BLE001 - any failure is recorded, never fatal

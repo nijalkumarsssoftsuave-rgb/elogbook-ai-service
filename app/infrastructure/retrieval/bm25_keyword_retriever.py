@@ -48,7 +48,11 @@ class BM25KeywordRetriever:
         }
 
     async def search(
-        self, query_text: str, top_k: int = 5, language: str | None = None
+        self,
+        query_text: str,
+        top_k: int = 5,
+        language: str | None = None,
+        source_id: str | None = None,
     ) -> list[RetrievedChunk]:
         query_terms = tokenize(query_text)  # Query time. Same function as index time.
         scores = [self._score(index, query_terms) for index in range(len(self._corpus))]
@@ -67,6 +71,11 @@ class BM25KeywordRetriever:
             # "aisle 7" surfaces the Arabic near-miss report.
             if language is not None and document.language != language:
                 continue
+            # Source restriction is applied here for the same reason as language: filtering
+            # while walking the ranked list means a restricted search still fills top_k,
+            # rather than truncating whatever survives a post-hoc filter.
+            if source_id is not None and document.source_id != source_id:
+                continue
             results.append(
                 RetrievedChunk(
                     chunk_id=document.chunk_id,
@@ -77,6 +86,7 @@ class BM25KeywordRetriever:
                         **document.metadata,
                         "source": "bm25",
                         "language": document.language,
+                        "source_id": document.source_id,
                     },
                 )
             )

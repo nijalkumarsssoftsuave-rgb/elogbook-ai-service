@@ -11,6 +11,7 @@ from app.application.transcription_service import enforce_size_limit
 from app.core.config import Settings, get_settings
 from app.core.correlation import get_correlation_id
 from app.core.security import RbacContext, get_rbac_context
+from app.domain.models import PermissionScope
 
 router = APIRouter(prefix="/api/v1/stt", tags=["stt"])
 
@@ -49,6 +50,7 @@ async def transcribe(
         roles=rbac.roles,
         correlation_id=correlation_id,
         top_k=top_k,
+        permission_scope=PermissionScope.from_roles(rbac.roles),
     )
     result = await stt_service.execute(request_dto)
     return ApiResponse.ok(

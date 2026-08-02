@@ -1,6 +1,12 @@
 from pydantic import BaseModel, Field
 
-from app.domain.models import Citation, GroundedAnswer, QueryProvenance, Transcript
+from app.domain.models import (
+    Citation,
+    GroundedAnswer,
+    PermissionScope,
+    QueryProvenance,
+    Transcript,
+)
 
 
 class QueryRequestDTO(BaseModel):
@@ -12,6 +18,9 @@ class QueryRequestDTO(BaseModel):
     # Carried to the audit trail, never acted on. Defaults to text, so the typed path
     # constructs this exactly as it always did.
     provenance: QueryProvenance = Field(default_factory=QueryProvenance)
+    # What the caller may read. Defaults to an empty scope, which resolves to no sources
+    # and therefore no evidence -- a request that forgets to populate it fails closed.
+    permission_scope: PermissionScope = Field(default_factory=PermissionScope)
 
 
 class QueryResultDTO(BaseModel):
@@ -47,6 +56,7 @@ class TranscribeRequestDTO(BaseModel):
     roles: list[str] = Field(default_factory=list)
     correlation_id: str
     top_k: int = 5
+    permission_scope: PermissionScope = Field(default_factory=PermissionScope)
 
 
 class TranscribeResultDTO(BaseModel):

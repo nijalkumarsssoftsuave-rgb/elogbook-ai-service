@@ -6,8 +6,13 @@ build here is good news that needs a follow-up action.
 """
 
 from app.application.dto import QueryRequestDTO
-from app.domain.models import Question
+from app.domain.models import PermissionScope, Question, RetrievalSearchContext
 from tests.eval.surfaces import EvaluationSurfaces
+
+# ES-327 made retrieval fail closed: a request with no permission scope resolves to no
+# sources and therefore no evidence. These tripwires are about pipeline behaviour, not
+# authorization, so they carry the same scope the evaluation harness uses.
+_SCOPE = PermissionScope.from_roles(["viewer"])
 
 _ENGLISH_QUESTIONS = [
     "What caused the fire alarm during the night shift?",
@@ -21,7 +26,11 @@ async def test_rank_one_of_retrieval_is_always_the_dense_stub(
 ) -> None:
     for text in _ENGLISH_QUESTIONS:
         chunks = await evaluation_surfaces.retrieval_service.retrieve(
-            Question(text=text, user_id="tripwire", language="en"), top_k=5
+            RetrievalSearchContext(
+                question=Question(text=text, user_id="tripwire", language="en"),
+                permission_scope=_SCOPE,
+                top_k=5,
+            )
         )
         assert chunks[0].chunk_id == "dense-stub-chunk-1", (
             "Rank 1 is no longer the dense stub, so the vector store may now be real. "
@@ -40,7 +49,11 @@ async def test_the_service_cannot_refuse_even_with_no_keyword_matches(
     )
     result = await evaluation_surfaces.qa_service.execute(
         QueryRequestDTO(
-            query=query, user_id="tripwire", correlation_id="tripwire", top_k=5
+            query=query,
+            user_id="tripwire",
+            correlation_id="tripwire",
+            top_k=5,
+            permission_scope=_SCOPE,
         )
     )
 
@@ -61,6 +74,7 @@ async def test_citations_do_not_all_resolve_to_the_corpus(
             user_id="tripwire",
             correlation_id="tripwire",
             top_k=5,
+            permission_scope=_SCOPE,
         )
     )
     cited = {citation.chunk_id for citation in result.citations}
@@ -84,6 +98,7 @@ async def test_language_detection_distinguishes_arabic_from_english(
             user_id="tripwire",
             correlation_id="tripwire",
             top_k=5,
+            permission_scope=_SCOPE,
         )
     )
 

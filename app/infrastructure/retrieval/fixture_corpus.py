@@ -1,15 +1,20 @@
 from typing import Any, NamedTuple
 
+SHIFT_LOGS = "shift-logs"
+INCIDENTS = "incidents"
+SAFETY = "safety"
+
 
 class FixtureDocument(NamedTuple):
     chunk_id: str
     document_id: str
     text: str
     metadata: dict[str, Any]
-    # Declared last with a default so existing positional construction keeps working
+    # Declared last with defaults so existing positional construction keeps working
     # (NamedTuple also forbids a defaulted field before a non-defaulted one, and
     # `metadata` has no default).
     language: str = "en"
+    source_id: str = SHIFT_LOGS
 
 
 # Sample logbook entries standing in for a real ingested corpus. Once a document
@@ -25,6 +30,7 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "Morning Shift Equipment Log"},
         language="en",
+        source_id=SHIFT_LOGS,
     ),
     FixtureDocument(
         chunk_id="log-002",
@@ -35,6 +41,7 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "Incident Report - Loading Dock"},
         language="en",
+        source_id=INCIDENTS,
     ),
     FixtureDocument(
         chunk_id="log-003",
@@ -45,6 +52,7 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "Shift Handover Notes"},
         language="en",
+        source_id=SHIFT_LOGS,
     ),
     FixtureDocument(
         chunk_id="log-004",
@@ -55,6 +63,7 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "Safety Walk Record - Zone B"},
         language="en",
+        source_id=SAFETY,
     ),
     FixtureDocument(
         chunk_id="log-005",
@@ -65,6 +74,7 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "Scheduled Maintenance Log"},
         language="en",
+        source_id=SHIFT_LOGS,
     ),
     FixtureDocument(
         chunk_id="log-006",
@@ -76,6 +86,7 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "Night Shift Alarm Report"},
         language="en",
+        source_id=INCIDENTS,
     ),
     FixtureDocument(
         chunk_id="log-007",
@@ -87,6 +98,7 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "Visitor and Contractor Log"},
         language="en",
+        source_id=SAFETY,
     ),
     FixtureDocument(
         chunk_id="log-008",
@@ -98,6 +110,7 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "Near-Miss Report - Aisle 7"},
         language="en",
+        source_id=INCIDENTS,
     ),
 ]
 
@@ -117,6 +130,7 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "سجل معدات وردية الصباح"},
         language="ar",
+        source_id=SHIFT_LOGS,
     ),
     FixtureDocument(
         chunk_id="log-ar-002",
@@ -127,6 +141,7 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "تقرير حادث - رصيف التحميل"},
         language="ar",
+        source_id=INCIDENTS,
     ),
     FixtureDocument(
         chunk_id="log-ar-003",
@@ -137,6 +152,7 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "ملاحظات تسليم الوردية"},
         language="ar",
+        source_id=SHIFT_LOGS,
     ),
     FixtureDocument(
         chunk_id="log-ar-004",
@@ -147,6 +163,7 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "سجل جولة السلامة - المنطقة ب"},
         language="ar",
+        source_id=SAFETY,
     ),
     FixtureDocument(
         chunk_id="log-ar-005",
@@ -157,6 +174,7 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "سجل الصيانة المجدولة"},
         language="ar",
+        source_id=SHIFT_LOGS,
     ),
     FixtureDocument(
         chunk_id="log-ar-006",
@@ -168,6 +186,7 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "تقرير إنذار الوردية الليلية"},
         language="ar",
+        source_id=INCIDENTS,
     ),
     FixtureDocument(
         chunk_id="log-ar-007",
@@ -178,6 +197,7 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "سجل الزوار والمقاولين"},
         language="ar",
+        source_id=SAFETY,
     ),
     FixtureDocument(
         chunk_id="log-ar-008",
@@ -188,6 +208,7 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
         ),
         metadata={"source_title": "تقرير وشك وقوع حادث - الممر 7"},
         language="ar",
+        source_id=INCIDENTS,
     ),
 ]
 

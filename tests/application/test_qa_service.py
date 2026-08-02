@@ -6,6 +6,7 @@ from app.application.dto import QueryRequestDTO
 from app.application.generation_service import GenerationService
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
+from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
 from app.domain.exceptions import UnsupportedLanguageError
@@ -14,8 +15,12 @@ from app.domain.models import (
     DetectedLanguage,
     Embedding,
     GroundedAnswer,
+    PermissionScope,
     Question,
+    RetrievalCandidates,
     RetrievedChunk,
+    Source,
+    SourceSearchRequest,
 )
 
 # The services under test are concrete classes, so the fakes sit one level down at the
@@ -45,20 +50,26 @@ class FakeEmbedding:
         return Embedding(vector=[0.1], model="fake")
 
 
-class FakeVectorStore:
-    async def search(self, embedding: Embedding, top_k: int = 5) -> list[RetrievedChunk]:
-        return []
+class FakeSourceResolver:
+    """Resolves to one source; the resolution rules themselves are covered in
+    tests/infrastructure/test_source_resolver.py.
+    """
+
+    async def resolve(self, scope: PermissionScope) -> list[Source]:
+        return [Source(source_id="shift-logs", display_name="Shift Logs")]
 
 
-class FakeKeywordRetriever:
+class FakeMultiSourceRetriever:
     def __init__(self, calls: list[str]) -> None:
         self.calls = calls
 
-    async def search(
-        self, query_text: str, top_k: int = 5, language: str | None = None
-    ) -> list[RetrievedChunk]:
+    async def search(self, request: SourceSearchRequest) -> RetrievalCandidates:
         self.calls.append("retrieve")
-        return [EVIDENCE]
+        return RetrievalCandidates(
+            searched_source_ids=[source.source_id for source in request.sources],
+            dense=[],
+            sparse=[EVIDENCE],
+        )
 
 
 class FakeReranker:
@@ -141,8 +152,13 @@ def _build_service(
             detector=FakeLanguageDetector(calls, code=language_code), supported_languages=["en"]
         ),
         GuardrailService(FakeGuardrail(calls)),
-        RetrievalService(
-            FakeEmbedding(), FakeVectorStore(), FakeKeywordRetriever(calls), FakeReranker()
+        RetrievalNode(
+            RetrievalService(
+                FakeEmbedding(),
+                FakeSourceResolver(),
+                FakeMultiSourceRetriever(calls),
+                FakeReranker(),
+            )
         ),
         GenerationService(model_client=FakeModelClient(calls, completions)),
         CitationValidationService(),
@@ -158,6 +174,7 @@ def request_dto() -> QueryRequestDTO:
         roles=["viewer"],
         correlation_id="cid-1",
         top_k=3,
+        permission_scope=PermissionScope.from_roles(["viewer"]),
     )
 
 
