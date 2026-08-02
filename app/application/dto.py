@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from app.domain.citation import ResolvedCitation
 from app.domain.models import GroundedAnswer, QueryProvenance, Transcript
 from app.domain.permission import PermissionScope
+from app.domain.query import QueryFilters
 
 
 class QueryRequestDTO(BaseModel):
@@ -17,6 +18,10 @@ class QueryRequestDTO(BaseModel):
     # What the caller may read. Defaults to an empty scope, which resolves to no sources
     # and therefore no evidence -- a request that forgets to populate it fails closed.
     permission_scope: PermissionScope = Field(default_factory=PermissionScope)
+    # What the caller asked to narrow the search to. Deliberately separate from
+    # permission_scope: one is an entitlement, the other a preference, and a filter can
+    # only ever shrink what the scope already permits.
+    filters: QueryFilters = Field(default_factory=QueryFilters)
 
 
 class QueryResultDTO(BaseModel):

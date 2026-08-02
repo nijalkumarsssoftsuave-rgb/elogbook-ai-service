@@ -6,6 +6,7 @@ from app.application.ports import (
 )
 from app.domain.models import Question, RetrievedChunk, SourceSearchRequest
 from app.domain.permission import SearchScope
+from app.domain.query import QueryFilters
 
 
 class RetrievalService:
@@ -35,8 +36,25 @@ class RetrievalService:
         self._reranker = reranker
 
     async def retrieve(
-        self, question: Question, search_scope: SearchScope, top_k: int = 5
+        self,
+        question: Question,
+        search_scope: SearchScope,
+        top_k: int = 5,
+        filters: QueryFilters | None = None,
     ) -> list[RetrievedChunk]:
+        """Searches the permitted scope and returns the top_k evidence.
+
+        `filters` is accepted and **not yet applied**. ES-337 carries the caller's filters
+        this far and stops there deliberately: plumbing them through in one change and
+        deciding what they mean to retrieval in the next keeps the second decision
+        reviewable on its own. Until then a filtered request returns the same results as an
+        unfiltered one.
+
+        It is a parameter rather than something this service stores. Stashing the request's
+        filters on the instance would give a shared service per-request state, and two
+        concurrent queries would then be able to read each other's -- which is a far more
+        expensive bug than an unused argument.
+        """
         if search_scope.is_empty:
             # Nothing permitted, nothing retrieved. Returning early rather than searching
             # an unrestricted index is the point of the whole arrangement; the pipeline

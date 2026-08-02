@@ -76,7 +76,7 @@ class QAApplicationService:
         await self._guardrail_service.check_question(question)
 
         chunks = await self._retrieval_node.run(
-            question, request.permission_scope, top_k=request.top_k
+            question, request.permission_scope, top_k=request.top_k, filters=request.filters
         )
         chunks = await self._guardrail_service.screen_retrieved_chunks(chunks)
 

@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.conftest import signed_jwt
@@ -109,3 +110,94 @@ def test_a_refusal_carries_no_confidence_score(app) -> None:
     data = response.json()["data"]
     assert data["refused"] is True
     assert data["confidence"] is None
+
+
+# --- ES-337: filter parameters ----------------------------------------------------------------
+
+_FILTERED_BODY = {
+    "query": "Show pump failures",
+    "filters": {
+        "area_ids": ["north"],
+        "date_from": "2026-07-01",
+        "date_to": "2026-07-31",
+    },
+}
+
+
+def test_a_query_without_filters_is_still_accepted(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """Filters are optional, so every client written before this ticket keeps working."""
+    response = client.post(
+        "/api/v1/qa/query", json={"query": "What happened last shift?"}, headers=auth_headers
+    )
+
+    assert response.status_code == 200
+
+
+def test_a_query_with_valid_filters_is_accepted(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    response = client.post("/api/v1/qa/query", json=_FILTERED_BODY, headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["data"]["answer_text"]
+
+
+def test_filters_do_not_yet_change_the_answer(
+    app, auth_headers: dict[str, str]
+) -> None:
+    """ES-337 accepts and forwards filters; deciding what they mean to retrieval is the next
+    ticket. Pinning that here means the behaviour change, when it lands, is visible as this
+    test being updated rather than as a silent difference.
+    """
+    unfiltered = TestClient(app).post(
+        "/api/v1/qa/query", json={"query": "Show pump failures"}, headers=auth_headers
+    )
+    filtered = TestClient(app).post(
+        "/api/v1/qa/query", json=_FILTERED_BODY, headers=auth_headers
+    )
+
+    assert filtered.json()["data"] == unfiltered.json()["data"]
+
+
+@pytest.mark.parametrize(
+    ("filters", "reason"),
+    [
+        ({"date_from": "2026-07-31", "date_to": "2026-07-01"}, "backwards date range"),
+        ({"area_ids": ["north", ""]}, "blank filter value"),
+        ({"date_from": "the first of July"}, "unparseable date"),
+        ({"area_id": "north"}, "misspelled filter key"),
+        ({"area_ids": "north"}, "a string where a list belongs"),
+    ],
+)
+def test_an_invalid_filter_is_rejected_with_a_validation_error(
+    client: TestClient, auth_headers: dict[str, str], filters: dict, reason: str
+) -> None:
+    response = client.post(
+        "/api/v1/qa/query",
+        json={"query": "Show pump failures", "filters": filters},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422, reason
+    body = response.json()
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    # The offending field is named, so a client can fix it without guessing.
+    assert body["error"]["details"]["errors"]
+
+
+def test_an_invalid_filter_is_rejected_before_the_pipeline_runs(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """Rejection is request validation, so nothing is retrieved, generated or audited for a
+    request that was never well formed.
+    """
+    response = client.post(
+        "/api/v1/qa/query",
+        json={"query": "Show pump failures", "filters": {"area_ids": [""]}},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+    assert "data" not in response.json() or response.json()["data"] is None

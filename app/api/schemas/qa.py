@@ -1,11 +1,17 @@
 from pydantic import BaseModel, Field
 
 from app.application.dto import QueryResultDTO
+from app.domain.query import QueryFilters
 
 
 class QAQueryRequest(BaseModel):
     query: str = Field(min_length=1, max_length=2000)
     top_k: int = Field(default=5, ge=1, le=20)
+    # Optional, and validated by QueryFilters itself rather than restated here: the
+    # rules for what a filter may say belong with the type, not with each transport
+    # that happens to accept one. An invalid filter fails request validation and comes
+    # back as a 422 with the offending field named.
+    filters: QueryFilters = Field(default_factory=QueryFilters)
 
 
 class CitationResponse(BaseModel):
