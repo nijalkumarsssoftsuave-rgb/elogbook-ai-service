@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
-from app.application.citation.citation_validation_service import CitationValidationService
+from app.application.citation.citation_validator import CitationValidator
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
 from app.application.qa.nodes.generation import GenerationNode
@@ -81,8 +81,8 @@ def build_surfaces(corpus: list[FixtureDocument] | None = None) -> EvaluationSur
         GuardrailService(GuardrailStub()),
         retrieval_node,
         GenerationNode(ModelClientStub()),
-        CitationValidationService(),
         CitationResolver(),
+        CitationValidator(),
         AuditService(CacheStub(), AuditStub()),
     )
     return EvaluationSurfaces(

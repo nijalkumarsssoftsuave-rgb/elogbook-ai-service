@@ -1,6 +1,6 @@
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
-from app.application.citation.citation_validation_service import CitationValidationService
+from app.application.citation.citation_validator import CitationValidator
 from app.application.dto import QueryRequestDTO, QueryResultDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -28,16 +28,16 @@ class QAApplicationService:
         guardrail_service: GuardrailService,
         retrieval_node: RetrievalNode,
         generation_node: GenerationNode,
-        citation_validation_service: CitationValidationService,
         citation_resolver: CitationResolver,
+        citation_validator: CitationValidator,
         audit_service: AuditService,
     ) -> None:
         self._language_detection = language_detection
         self._guardrail_service = guardrail_service
         self._retrieval_node = retrieval_node
         self._generation_node = generation_node
-        self._citation_validation_service = citation_validation_service
         self._citation_resolver = citation_resolver
+        self._citation_validator = citation_validator
         self._audit_service = audit_service
 
     async def execute(self, request: QueryRequestDTO) -> QueryResultDTO:
@@ -77,17 +77,29 @@ class QAApplicationService:
     async def _generate_and_validate(
         self, question: Question, chunks: list[RetrievedChunk]
     ) -> GroundedAnswer:
-        """Generates an answer, keeps it only if its citations check out, and resolves them.
+        """Generates an answer, resolves its citations, and keeps it only if they hold up.
+
+                generate -> resolve -> validate -+- valid   -> return the answer
+                                                 |
+                                                 +- invalid -> retry, then refuse
+
+        Acting on the verdict is this service's job, not the validator's: the validator
+        reports, and the orchestrator decides. That split is what lets the same verdict drive
+        a retry today and a conditional edge once the flow becomes a LangGraph graph, without
+        the validator learning anything about either.
+
+        A failed attempt is discarded whole. Dropping the offending citation and returning
+        the rest would leave the claim it was supporting standing with nothing behind it, and
+        substituting another citation would be fabricating a source -- so the only honest
+        outcomes are a fresh attempt or a grounded refusal.
 
         The loop lives here rather than inside any one collaborator because it is the only
-        place holding all three: having the generation node call CitationValidationService
-        (or vice versa) would couple collaborators that are otherwise siblings.
-
-        Resolution runs only on an answer that already validated, so a rejected attempt
-        never pays for it.
+        place holding all three: having the generation node call the validator (or vice
+        versa) would couple collaborators that are otherwise siblings.
         """
         for _ in range(self._MAX_GENERATION_ATTEMPTS):
             generated = await self._generation_node.generate(question, chunks)
-            if self._citation_validation_service.validate(generated, chunks).is_valid:
-                return self._citation_resolver.resolve(generated, chunks)
+            grounded = self._citation_resolver.resolve(generated, chunks)
+            if self._citation_validator.validate(generated, grounded, chunks).is_valid:
+                return grounded
         return GroundedAnswer.refusal()

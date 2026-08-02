@@ -104,11 +104,6 @@ class GroundedAnswer(BaseModel):
         )
 
 
-class CitationValidationResult(BaseModel):
-    is_valid: bool
-    reason: str | None = None
-
-
 class PermissionScope(BaseModel):
     """What the caller is entitled to read.
 

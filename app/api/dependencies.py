@@ -4,7 +4,7 @@ from fastapi import Depends
 
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
-from app.application.citation.citation_validation_service import CitationValidationService
+from app.application.citation.citation_validator import CitationValidator
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
 from app.application.ports import (
@@ -182,12 +182,12 @@ def get_generation_node(
     return GenerationNode(model_client=model_client)
 
 
-def get_citation_validation_service() -> CitationValidationService:
-    return CitationValidationService()
-
-
 def get_citation_resolver() -> CitationResolver:
     return CitationResolver()
+
+
+def get_citation_validator() -> CitationValidator:
+    return CitationValidator()
 
 
 def get_audit_service(
@@ -202,10 +202,8 @@ def get_qa_service(
     guardrail_service: GuardrailService = Depends(get_guardrail_service),
     retrieval_node: RetrievalNode = Depends(get_retrieval_node),
     generation_node: GenerationNode = Depends(get_generation_node),
-    citation_validation_service: CitationValidationService = Depends(
-        get_citation_validation_service
-    ),
     citation_resolver: CitationResolver = Depends(get_citation_resolver),
+    citation_validator: CitationValidator = Depends(get_citation_validator),
     audit_service: AuditService = Depends(get_audit_service),
 ) -> QAApplicationService:
     return QAApplicationService(
@@ -213,8 +211,8 @@ def get_qa_service(
         guardrail_service,
         retrieval_node,
         generation_node,
-        citation_validation_service,
         citation_resolver,
+        citation_validator,
         audit_service,
     )
 

@@ -2,7 +2,7 @@ import pytest
 
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
-from app.application.citation.citation_validation_service import CitationValidationService
+from app.application.citation.citation_validator import CitationValidator
 from app.application.dto import QueryRequestDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -10,11 +10,13 @@ from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
+from app.domain.citation import Citation
 from app.domain.exceptions import UnsupportedLanguageError
 from app.domain.models import (
     AuditRecord,
     DetectedLanguage,
     Embedding,
+    GeneratedAnswer,
     GenerationRequest,
     GroundedAnswer,
     PermissionScope,
@@ -138,6 +140,29 @@ class FakeAudit:
         self.recorded.append(record)
 
 
+class PhantomGenerationNode:
+    """Returns an answer citing a chunk that is not among the retrieved evidence.
+
+    The real GenerationNode cannot produce this: it builds references only from the labels
+    it issued, for chunks it was handed. A stand-in is the only way to reach the
+    orchestrator's UNRESOLVED_CITATION branch, and that branch is worth reaching -- it is
+    what stops a partially resolved answer going out if the chunk list ever moves underneath
+    an answer.
+    """
+
+    def __init__(self, calls: list[str]) -> None:
+        self.calls = calls
+
+    async def generate(
+        self, question: Question, context_chunks: list[RetrievedChunk]
+    ) -> GeneratedAnswer:
+        self.calls.append("generate")
+        return GeneratedAnswer(
+            answer_text="The check was completed [c1].",
+            citations=[Citation(citation_id="c1", chunk_id="log-nowhere", order=1)],
+        )
+
+
 # A completion citing the evidence label the node issues for the single retrieved chunk,
 # and one citing nothing.
 GROUNDED_COMPLETION = "The check was completed [c1]."
@@ -150,6 +175,7 @@ def _build_service(
     cache: FakeCache,
     audit: FakeAudit,
     language_code: str = "en",
+    generation_node: GenerationNode | PhantomGenerationNode | None = None,
 ) -> QAApplicationService:
     return QAApplicationService(
         LanguageDetectionService(
@@ -162,9 +188,9 @@ def _build_service(
                 FakeEmbedding(), FakeMultiSourceRetriever(calls), FakeReranker()
             ),
         ),
-        GenerationNode(model_client=FakeModelClient(calls, completions)),
-        CitationValidationService(),
+        generation_node or GenerationNode(model_client=FakeModelClient(calls, completions)),
         CitationResolver(),
+        CitationValidator(),
         AuditService(cache, audit),
     )
 
@@ -260,6 +286,30 @@ async def test_execute_refuses_after_two_failed_attempts_and_does_not_cache_the_
     assert "record_query" in calls  # refusals are still audited
     assert "cache_set" not in calls  # but never cached
     assert audit.recorded[0].answer.refused is True
+
+
+async def test_execute_refuses_rather_than_returning_an_answer_with_a_citation_that_did_not_resolve(
+    request_dto: QueryRequestDTO,
+) -> None:
+    """The decision ES-331 adds. Resolution drops the unmatched reference, so without the
+    validator downstream this answer would go out with its claim intact and its supporting
+    citation quietly missing. Instead the whole response is rejected.
+    """
+    calls: list[str] = []
+    cache, audit = FakeCache(calls), FakeAudit(calls)
+    service = _build_service(
+        calls, [], cache, audit, generation_node=PhantomGenerationNode(calls)
+    )
+
+    result = await service.execute(request_dto)
+
+    assert calls.count("generate") == 2  # retried first, then refused
+    assert result.refused is True
+    assert result.answer_text == GroundedAnswer.REFUSAL_TEXT
+    assert result.citations == []
+    # The answer the model actually produced never reaches the caller, not even in part.
+    assert "The check was completed" not in result.answer_text
+    assert "cache_set" not in calls
 
 
 async def test_execute_rejects_an_unsupported_language_before_anything_else(
