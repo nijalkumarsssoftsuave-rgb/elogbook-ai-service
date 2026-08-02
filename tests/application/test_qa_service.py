@@ -4,7 +4,11 @@ from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
 from app.application.citation.citation_validator import CitationValidator
 from app.application.confidence.confidence_scoring_service import (
+    ConfidencePolicy,
     ConfidenceScoringService,
+)
+from app.application.confidence.grounding_decision_service import (
+    GroundingDecisionService,
 )
 from app.application.dto import QueryRequestDTO
 from app.application.guardrail_service import GuardrailService
@@ -178,6 +182,7 @@ def _build_service(
     audit: FakeAudit,
     language_code: str = "en",
     generation_node: GenerationNode | PhantomGenerationNode | None = None,
+    confidence_policy: ConfidencePolicy = DEFAULT_CONFIDENCE_POLICY,
 ) -> QAApplicationService:
     return QAApplicationService(
         LanguageDetectionService(
@@ -193,7 +198,8 @@ def _build_service(
         generation_node or GenerationNode(model_client=FakeModelClient(calls, completions)),
         CitationResolver(),
         CitationValidator(),
-        ConfidenceScoringService(DEFAULT_CONFIDENCE_POLICY),
+        ConfidenceScoringService(confidence_policy),
+        GroundingDecisionService(),
         AuditService(cache, audit),
     )
 
@@ -326,3 +332,125 @@ async def test_execute_rejects_an_unsupported_language_before_anything_else(
         await service.execute(request_dto)
 
     assert calls == ["detect"]
+
+
+# --- ES-335: the grounding decision -----------------------------------------------------------
+
+# Nothing the stubs produce scores below 0.56, so a policy that refuses everything under
+# 0.95 is what makes the LOW branch reachable end to end. Tuning the shipped thresholds to
+# reach it instead would be letting a stub's behaviour set production policy.
+_REFUSE_ALMOST_EVERYTHING = ConfidencePolicy(
+    retrieval_weight=0.4,
+    reranker_weight=0.2,
+    citation_weight=0.4,
+    refusal_threshold=0.95,
+    review_threshold=0.99,
+)
+
+
+async def test_a_low_confidence_answer_is_refused_rather_than_returned(
+    request_dto: QueryRequestDTO,
+) -> None:
+    calls: list[str] = []
+    cache, audit = FakeCache(calls), FakeAudit(calls)
+    service = _build_service(
+        calls,
+        [GROUNDED_COMPLETION],
+        cache,
+        audit,
+        confidence_policy=_REFUSE_ALMOST_EVERYTHING,
+    )
+
+    result = await service.execute(request_dto)
+
+    assert result.refused is True
+    assert result.answer_text == GroundedAnswer.REFUSAL_TEXT
+    assert result.citations == []
+    assert "The check was completed" not in result.answer_text
+
+
+async def test_the_decision_is_made_once_and_does_not_drive_the_retry(
+    request_dto: QueryRequestDTO,
+) -> None:
+    """A thin score reflects thin evidence, and a retry regenerates the answer without
+    re-running retrieval -- so a second attempt would be asked to fix something it cannot
+    reach. One generation, then the decision.
+    """
+    calls: list[str] = []
+    cache, audit = FakeCache(calls), FakeAudit(calls)
+    service = _build_service(
+        calls,
+        [GROUNDED_COMPLETION],
+        cache,
+        audit,
+        confidence_policy=_REFUSE_ALMOST_EVERYTHING,
+    )
+
+    await service.execute(request_dto)
+
+    assert calls.count("generate") == 1
+
+
+async def test_a_confidence_refusal_is_audited_and_never_cached(
+    request_dto: QueryRequestDTO,
+) -> None:
+    calls: list[str] = []
+    cache, audit = FakeCache(calls), FakeAudit(calls)
+    service = _build_service(
+        calls,
+        [GROUNDED_COMPLETION],
+        cache,
+        audit,
+        confidence_policy=_REFUSE_ALMOST_EVERYTHING,
+    )
+
+    await service.execute(request_dto)
+
+    assert "record_query" in calls
+    assert "cache_set" not in calls
+    assert audit.recorded[0].answer.refused is True
+
+
+async def test_the_two_kinds_of_refusal_are_told_apart_by_their_score(
+    request_dto: QueryRequestDTO,
+) -> None:
+    """A refusal carrying a score had an answer and judged it too weakly supported; one
+    carrying none never had anything to score. Collapsing them would hide which half of the
+    pipeline fell short.
+    """
+    calls: list[str] = []
+    too_weak = await _build_service(
+        calls,
+        [GROUNDED_COMPLETION],
+        FakeCache(calls),
+        FakeAudit(calls),
+        confidence_policy=_REFUSE_ALMOST_EVERYTHING,
+    ).execute(request_dto)
+
+    calls = []
+    nothing_to_answer_from = await _build_service(
+        calls, [UNGROUNDED_COMPLETION], FakeCache(calls), FakeAudit(calls)
+    ).execute(request_dto)
+
+    assert too_weak.refused is nothing_to_answer_from.refused is True
+    # The score itself is pinned in test_confidence_scoring_service.py; what matters here is
+    # that one refusal has one and the other cannot.
+    assert too_weak.confidence is not None
+    assert nothing_to_answer_from.confidence is None
+
+
+async def test_a_high_confidence_answer_still_reaches_the_caller(
+    request_dto: QueryRequestDTO,
+) -> None:
+    """The other side of the same switch, on the shipped policy: the decision node is not a
+    blanket filter.
+    """
+    calls: list[str] = []
+    cache, audit = FakeCache(calls), FakeAudit(calls)
+    service = _build_service(calls, [GROUNDED_COMPLETION], cache, audit)
+
+    result = await service.execute(request_dto)
+
+    assert result.refused is False
+    assert result.citations
+    assert result.confidence is not None

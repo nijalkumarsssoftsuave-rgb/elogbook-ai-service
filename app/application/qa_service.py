@@ -4,6 +4,9 @@ from app.application.citation.citation_validator import CitationValidator
 from app.application.confidence.confidence_scoring_service import (
     ConfidenceScoringService,
 )
+from app.application.confidence.grounding_decision_service import (
+    GroundingDecisionService,
+)
 from app.application.dto import QueryRequestDTO, QueryResultDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -34,6 +37,7 @@ class QAApplicationService:
         citation_resolver: CitationResolver,
         citation_validator: CitationValidator,
         confidence_scoring_service: ConfidenceScoringService,
+        grounding_decision_service: GroundingDecisionService,
         audit_service: AuditService,
     ) -> None:
         self._language_detection = language_detection
@@ -43,6 +47,7 @@ class QAApplicationService:
         self._citation_resolver = citation_resolver
         self._citation_validator = citation_validator
         self._confidence_scoring_service = confidence_scoring_service
+        self._grounding_decision_service = grounding_decision_service
         self._audit_service = audit_service
 
     async def execute(self, request: QueryRequestDTO) -> QueryResultDTO:
@@ -110,9 +115,12 @@ class QAApplicationService:
                 confidence = self._confidence_scoring_service.score(
                     chunks, requested_top_k, generated, validation
                 )
-                # Scored, recorded, and not acted on. A LOW band does not turn into a
-                # refusal here: the citations validated, so the answer is grounded, and
-                # deciding that a weakly supported grounded answer is worse than none is
-                # a policy call this ticket does not make.
-                return grounded.model_copy(update={"confidence": confidence.score})
+                # The grounding decision is applied once, to the accepted answer, and
+                # not from inside the retry: a thin score reflects thin evidence, and
+                # retrying regenerates the answer without re-running retrieval, so a
+                # second attempt would be asked to fix something it cannot reach.
+                return self._grounding_decision_service.decide(
+                    grounded.model_copy(update={"confidence": confidence.score}),
+                    confidence,
+                )
         return GroundedAnswer.refusal()

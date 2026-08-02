@@ -9,6 +9,9 @@ from app.application.confidence.confidence_scoring_service import (
     ConfidencePolicy,
     ConfidenceScoringService,
 )
+from app.application.confidence.grounding_decision_service import (
+    GroundingDecisionService,
+)
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
 from app.application.permission.permission_resolver import PermissionResolver
@@ -218,6 +221,10 @@ def get_confidence_scoring_service(
     return ConfidenceScoringService(policy=policy)
 
 
+def get_grounding_decision_service() -> GroundingDecisionService:
+    return GroundingDecisionService()
+
+
 def get_audit_service(
     cache: CachePort = Depends(get_cache_port),
     audit: AuditPort = Depends(get_audit_port),
@@ -235,6 +242,9 @@ def get_qa_service(
     confidence_scoring_service: ConfidenceScoringService = Depends(
         get_confidence_scoring_service
     ),
+    grounding_decision_service: GroundingDecisionService = Depends(
+        get_grounding_decision_service
+    ),
     audit_service: AuditService = Depends(get_audit_service),
 ) -> QAApplicationService:
     return QAApplicationService(
@@ -245,6 +255,7 @@ def get_qa_service(
         citation_resolver,
         citation_validator,
         confidence_scoring_service,
+        grounding_decision_service,
         audit_service,
     )
 
