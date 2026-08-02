@@ -1,6 +1,6 @@
 from app.application.audit_service import AuditService
-from app.application.citation_resolution_service import CitationResolutionService
-from app.application.citation_validation_service import CitationValidationService
+from app.application.citation.citation_resolver import CitationResolver
+from app.application.citation.citation_validation_service import CitationValidationService
 from app.application.dto import QueryRequestDTO, QueryResultDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -29,7 +29,7 @@ class QAApplicationService:
         retrieval_node: RetrievalNode,
         generation_node: GenerationNode,
         citation_validation_service: CitationValidationService,
-        citation_resolution_service: CitationResolutionService,
+        citation_resolver: CitationResolver,
         audit_service: AuditService,
     ) -> None:
         self._language_detection = language_detection
@@ -37,7 +37,7 @@ class QAApplicationService:
         self._retrieval_node = retrieval_node
         self._generation_node = generation_node
         self._citation_validation_service = citation_validation_service
-        self._citation_resolution_service = citation_resolution_service
+        self._citation_resolver = citation_resolver
         self._audit_service = audit_service
 
     async def execute(self, request: QueryRequestDTO) -> QueryResultDTO:
@@ -89,5 +89,5 @@ class QAApplicationService:
         for _ in range(self._MAX_GENERATION_ATTEMPTS):
             generated = await self._generation_node.generate(question, chunks)
             if self._citation_validation_service.validate(generated, chunks).is_valid:
-                return self._citation_resolution_service.resolve(generated, chunks)
+                return self._citation_resolver.resolve(generated, chunks)
         return GroundedAnswer.refusal()

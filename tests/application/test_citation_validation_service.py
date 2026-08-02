@@ -1,4 +1,4 @@
-from app.application.citation_validation_service import CitationValidationService
+from app.application.citation.citation_validation_service import CitationValidationService
 from app.domain.citation import Citation
 from app.domain.models import GeneratedAnswer, RetrievedChunk
 

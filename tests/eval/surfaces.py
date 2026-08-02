@@ -15,8 +15,8 @@ silently drift into scoring a different pipeline.
 from dataclasses import dataclass
 
 from app.application.audit_service import AuditService
-from app.application.citation_resolution_service import CitationResolutionService
-from app.application.citation_validation_service import CitationValidationService
+from app.application.citation.citation_resolver import CitationResolver
+from app.application.citation.citation_validation_service import CitationValidationService
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
 from app.application.qa.nodes.generation import GenerationNode
@@ -82,7 +82,7 @@ def build_surfaces(corpus: list[FixtureDocument] | None = None) -> EvaluationSur
         retrieval_node,
         GenerationNode(ModelClientStub()),
         CitationValidationService(),
-        CitationResolutionService(),
+        CitationResolver(),
         AuditService(CacheStub(), AuditStub()),
     )
     return EvaluationSurfaces(
