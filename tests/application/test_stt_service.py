@@ -3,7 +3,7 @@ import pytest
 from app.application.dto import QueryRequestDTO, QueryResultDTO, TranscribeRequestDTO
 from app.application.stt_service import STTApplicationService
 from app.domain.exceptions import AudioRejectionReason, InvalidAudioError
-from app.domain.models import AudioRequest, Transcript
+from app.domain.models import AudioRequest, QueryOrigin, Transcript
 
 # The orchestrator's collaborators are both concrete services, so the fakes here stand in
 # for them directly -- their own behaviour is covered in test_transcription_service.py and
@@ -118,6 +118,37 @@ async def test_audio_metadata_is_assembled_from_the_upload(
     # Size is measured from the bytes we actually hold, never taken on trust from the
     # client's declared length.
     assert metadata.size_bytes == len(request_dto.audio_bytes)
+
+
+async def test_the_query_carries_voice_provenance_to_the_audit_trail(
+    request_dto: TranscribeRequestDTO,
+) -> None:
+    calls: list[str] = []
+    timed = TRANSCRIPT.model_copy(update={"duration_seconds": 11.0})
+    service, _, qa = _build_service(calls, transcript=timed)
+
+    await service.execute(request_dto)
+
+    provenance = qa.received[0].provenance
+    assert provenance.origin is QueryOrigin.VOICE
+    assert provenance.audio_duration_seconds == 11.0
+    # Wall-clock: asserted on presence and sign, never on a magic number.
+    assert provenance.transcription_duration_seconds is not None
+    assert provenance.transcription_duration_seconds >= 0
+
+
+async def test_an_engine_that_reports_no_duration_records_none_rather_than_zero(
+    request_dto: TranscribeRequestDTO,
+) -> None:
+    """The stub speech backend cannot know a duration without decoding. Zero would read as
+    "an empty recording"; None reads as "not measured", which is the truth.
+    """
+    calls: list[str] = []
+    service, _, qa = _build_service(calls)  # TRANSCRIPT has duration_seconds=None
+
+    await service.execute(request_dto)
+
+    assert qa.received[0].provenance.audio_duration_seconds is None
 
 
 async def test_a_padded_transcript_is_trimmed_before_it_becomes_a_question(

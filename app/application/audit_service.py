@@ -1,7 +1,7 @@
 import hashlib
 
 from app.application.ports import AuditPort, CachePort
-from app.domain.models import GroundedAnswer, Question
+from app.domain.models import AuditRecord, GroundedAnswer, QueryProvenance, Question
 
 
 class AuditService:
@@ -17,20 +17,48 @@ class AuditService:
         return await self._cache.get(self._cache_key(question))
 
     async def record_cache_hit(
-        self, question: Question, answer: GroundedAnswer, correlation_id: str
+        self,
+        question: Question,
+        answer: GroundedAnswer,
+        correlation_id: str,
+        provenance: QueryProvenance,
     ) -> None:
         """A cache hit still needs an audit record; there is nothing new to cache."""
-        await self._audit.record_query(question, answer, correlation_id)
+        await self._record(question, answer, correlation_id, provenance)
 
     async def finalize(
-        self, question: Question, answer: GroundedAnswer, correlation_id: str
+        self,
+        question: Question,
+        answer: GroundedAnswer,
+        correlation_id: str,
+        provenance: QueryProvenance,
     ) -> None:
-        await self._audit.record_query(question, answer, correlation_id)
+        await self._record(question, answer, correlation_id, provenance)
         # Refusals are audited but never cached: a later attempt with better evidence
         # could succeed, and a cached refusal would suppress that indefinitely.
         if not answer.refused:
             await self._cache.set(self._cache_key(question), answer)
 
+    async def _record(
+        self,
+        question: Question,
+        answer: GroundedAnswer,
+        correlation_id: str,
+        provenance: QueryProvenance,
+    ) -> None:
+        """The one place that knows how an audit record is assembled."""
+        await self._audit.record(
+            AuditRecord(
+                correlation_id=correlation_id,
+                question=question,
+                answer=answer,
+                provenance=provenance,
+            )
+        )
+
     @staticmethod
     def _cache_key(question: Question) -> str:
+        # Deliberately derived from the question alone. Provenance must never enter this:
+        # the moment it does, a spoken question stops sharing cache entries with the
+        # identical typed one and ES-325's guarantee quietly rots.
         return f"qa:{hashlib.sha256(question.text.encode()).hexdigest()}"

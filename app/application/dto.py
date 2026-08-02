@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from app.domain.models import Citation, GroundedAnswer, Transcript
+from app.domain.models import Citation, GroundedAnswer, QueryProvenance, Transcript
 
 
 class QueryRequestDTO(BaseModel):
@@ -9,6 +9,9 @@ class QueryRequestDTO(BaseModel):
     roles: list[str] = Field(default_factory=list)
     correlation_id: str
     top_k: int = 5
+    # Carried to the audit trail, never acted on. Defaults to text, so the typed path
+    # constructs this exactly as it always did.
+    provenance: QueryProvenance = Field(default_factory=QueryProvenance)
 
 
 class QueryResultDTO(BaseModel):
