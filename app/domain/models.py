@@ -94,12 +94,19 @@ class GroundedAnswer(BaseModel):
     refused: bool = False
 
     @classmethod
-    def refusal(cls) -> "GroundedAnswer":
-        """The safe answer returned when no grounded answer could be produced."""
+    def refusal(cls, confidence: float | None = None) -> "GroundedAnswer":
+        """The safe answer returned when no grounded answer could be produced.
+
+        `confidence` carries the score that caused the refusal, where there was one. The two
+        cases read differently on purpose: a refusal with no score means there was nothing
+        to score, while a refusal carrying 0.22 says an answer was produced and judged too
+        weakly supported to send. Collapsing them would hide which half of the pipeline
+        fell short.
+        """
         return cls(
             answer_text=cls.REFUSAL_TEXT,
             citations=[],
-            confidence=None,
+            confidence=confidence,
             is_grounded=False,
             refused=True,
         )

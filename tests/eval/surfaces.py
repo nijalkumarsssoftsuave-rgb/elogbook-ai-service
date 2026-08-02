@@ -20,6 +20,9 @@ from app.application.citation.citation_validator import CitationValidator
 from app.application.confidence.confidence_scoring_service import (
     ConfidenceScoringService,
 )
+from app.application.confidence.grounding_decision_service import (
+    GroundingDecisionService,
+)
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
 from app.application.permission.permission_resolver import PermissionResolver
@@ -89,6 +92,7 @@ def build_surfaces(corpus: list[FixtureDocument] | None = None) -> EvaluationSur
         CitationResolver(),
         CitationValidator(),
         ConfidenceScoringService(DEFAULT_CONFIDENCE_POLICY),
+        GroundingDecisionService(),
         AuditService(CacheStub(), AuditStub()),
     )
     return EvaluationSurfaces(

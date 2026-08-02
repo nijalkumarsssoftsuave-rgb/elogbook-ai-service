@@ -6,6 +6,9 @@ from app.application.citation.citation_validator import CitationValidator
 from app.application.confidence.confidence_scoring_service import (
     ConfidenceScoringService,
 )
+from app.application.confidence.grounding_decision_service import (
+    GroundingDecisionService,
+)
 from app.application.dto import QueryRequestDTO, TranscribeRequestDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -79,6 +82,7 @@ def _build_qa_service(cache: RecordingCache) -> QAApplicationService:
         CitationResolver(),
         CitationValidator(),
         ConfidenceScoringService(DEFAULT_CONFIDENCE_POLICY),
+        GroundingDecisionService(),
         AuditService(cache, AuditStub()),
     )
 
