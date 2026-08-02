@@ -89,6 +89,9 @@ class STTApplicationService:
             roles=request.roles,
             correlation_id=request.correlation_id,
             top_k=request.top_k,
+            # Forwarded unchanged: a spoken question is answered from exactly the sources
+            # the same caller could have reached by typing it.
+            permission_scope=request.permission_scope,
             provenance=QueryProvenance(
                 origin=QueryOrigin.VOICE,
                 audio_duration_seconds=transcript.duration_seconds,

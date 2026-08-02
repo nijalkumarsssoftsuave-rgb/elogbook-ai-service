@@ -6,13 +6,16 @@ from app.application.dto import QueryRequestDTO, TranscribeRequestDTO
 from app.application.generation_service import GenerationService
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
+from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
 from app.application.stt_service import STTApplicationService
 from app.application.transcription_service import TranscriptionService
-from app.domain.models import GroundedAnswer
+from app.domain.models import GroundedAnswer, PermissionScope
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
+from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
+from app.infrastructure.retrieval.source_resolver import RoleBasedSourceResolver
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
 from app.infrastructure.stubs.guardrail_stub import GuardrailStub
@@ -22,6 +25,10 @@ from app.infrastructure.stubs.speech_to_text_stub import SpeechToTextStub
 from app.infrastructure.stubs.vector_store_stub import VectorStoreStub
 
 SUPPORTED_LANGUAGES = ["en", "ar"]
+
+# Retrieval fails closed since ES-327; both paths carry the same scope so the comparison
+# is between two real answers rather than two refusals.
+VIEWER = PermissionScope.from_roles(["viewer"])
 ALLOWED_CONTENT_TYPES = ["audio/wav"]
 MAX_AUDIO_BYTES = 1_000_000
 
@@ -53,8 +60,13 @@ def _build_qa_service(cache: RecordingCache) -> QAApplicationService:
     return QAApplicationService(
         LanguageDetectionService(ScriptLanguageDetector(), SUPPORTED_LANGUAGES),
         GuardrailService(GuardrailStub()),
-        RetrievalService(
-            EmbeddingStub(), VectorStoreStub(), BM25KeywordRetriever(), RerankerStub()
+        RetrievalNode(
+            RetrievalService(
+                EmbeddingStub(),
+                RoleBasedSourceResolver(),
+                MultiSourceRetriever(VectorStoreStub(), BM25KeywordRetriever()),
+                RerankerStub(),
+            )
         ),
         GenerationService(ModelClientStub()),
         CitationValidationService(),
@@ -81,6 +93,7 @@ def _voice_request(language_hint: str | None = None) -> TranscribeRequestDTO:
         roles=["viewer"],
         correlation_id="cid-voice",
         top_k=5,
+        permission_scope=VIEWER,
     )
 
 
@@ -91,6 +104,7 @@ def _text_request(query: str) -> QueryRequestDTO:
         roles=["viewer"],
         correlation_id="cid-text",
         top_k=5,
+        permission_scope=VIEWER,
     )
 
 

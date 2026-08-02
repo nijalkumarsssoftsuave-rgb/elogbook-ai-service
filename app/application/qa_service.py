@@ -4,7 +4,7 @@ from app.application.dto import QueryRequestDTO, QueryResultDTO
 from app.application.generation_service import GenerationService
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
-from app.application.retrieval_service import RetrievalService
+from app.application.qa.nodes.retrieval import RetrievalNode
 from app.domain.models import GroundedAnswer, Question, RetrievedChunk
 
 
@@ -25,14 +25,14 @@ class QAApplicationService:
         self,
         language_detection: LanguageDetectionService,
         guardrail_service: GuardrailService,
-        retrieval_service: RetrievalService,
+        retrieval_node: RetrievalNode,
         generation_service: GenerationService,
         citation_validation_service: CitationValidationService,
         audit_service: AuditService,
     ) -> None:
         self._language_detection = language_detection
         self._guardrail_service = guardrail_service
-        self._retrieval_service = retrieval_service
+        self._retrieval_node = retrieval_node
         self._generation_service = generation_service
         self._citation_validation_service = citation_validation_service
         self._audit_service = audit_service
@@ -56,7 +56,9 @@ class QAApplicationService:
 
         await self._guardrail_service.check_question(question)
 
-        chunks = await self._retrieval_service.retrieve(question, top_k=request.top_k)
+        chunks = await self._retrieval_node.run(
+            question, request.permission_scope, top_k=request.top_k
+        )
         chunks = await self._guardrail_service.screen_retrieved_chunks(chunks)
 
         answer = await self._generate_and_validate(question, chunks)

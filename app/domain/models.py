@@ -73,6 +73,70 @@ class CitationValidationResult(BaseModel):
     reason: str | None = None
 
 
+class PermissionScope(BaseModel):
+    """What the caller is entitled to read.
+
+    Deliberately separate from `Question.roles`, which records *who asked*. Both derive
+    from the same token claim today, but they answer different questions and will diverge:
+    a scope is where site restrictions and classification levels belong, and adding them
+    should not change what a Question is.
+    """
+
+    roles: list[str] = Field(default_factory=list)
+
+    @classmethod
+    def from_roles(cls, roles: list[str]) -> "PermissionScope":
+        return cls(roles=list(roles))
+
+
+class Source(BaseModel):
+    """One logical corpus that retrieval can be pointed at."""
+
+    source_id: str
+    display_name: str
+
+
+class RetrievalSearchContext(BaseModel):
+    """A question as retrieval understands it: what was asked, what the asker may read,
+    and how much evidence to come back with.
+
+    Built at the retrieval node and consumed by RetrievalService, so the two ends of that
+    hand-off cannot drift apart argument by argument.
+    """
+
+    question: Question
+    permission_scope: PermissionScope
+    top_k: int = 5
+
+
+class SourceSearchRequest(BaseModel):
+    """What the permitted sources are asked for.
+
+    The embedding travels with the request because the query is embedded once, upstream,
+    however many sources end up being searched.
+    """
+
+    query_text: str
+    query_embedding: Embedding
+    language: str | None = None
+    sources: list[Source] = Field(default_factory=list)
+    limit_per_source: int = 20
+
+
+class RetrievalCandidates(BaseModel):
+    """Everything the permitted sources returned, ready for fusion.
+
+    The two methods stay in separate lists because Reciprocal Rank Fusion is what
+    reconciles them, and that step is deliberately left untouched. `searched_source_ids`
+    records which sources were actually queried, which is not the same as which ones
+    returned a hit -- a permitted source that matched nothing still needs to be visible.
+    """
+
+    searched_source_ids: list[str] = Field(default_factory=list)
+    dense: list[RetrievedChunk] = Field(default_factory=list)
+    sparse: list[RetrievedChunk] = Field(default_factory=list)
+
+
 class QueryOrigin(StrEnum):
     TEXT = "text"
     VOICE = "voice"

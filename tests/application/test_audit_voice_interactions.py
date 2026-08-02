@@ -4,13 +4,22 @@ from app.application.dto import QueryRequestDTO, TranscribeRequestDTO
 from app.application.generation_service import GenerationService
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
+from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
 from app.application.stt_service import STTApplicationService
 from app.application.transcription_service import TranscriptionService
-from app.domain.models import AudioRequest, AuditRecord, QueryOrigin, Transcript
+from app.domain.models import (
+    AudioRequest,
+    AuditRecord,
+    PermissionScope,
+    QueryOrigin,
+    Transcript,
+)
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
+from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
+from app.infrastructure.retrieval.source_resolver import RoleBasedSourceResolver
 from app.infrastructure.stubs.cache_stub import CacheStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
 from app.infrastructure.stubs.guardrail_stub import GuardrailStub
@@ -20,6 +29,12 @@ from app.infrastructure.stubs.speech_to_text_stub import SpeechToTextStub
 from app.infrastructure.stubs.vector_store_stub import VectorStoreStub
 
 SUPPORTED_LANGUAGES = ["en", "ar"]
+
+# Retrieval fails closed since ES-327, so a request without a scope reaches no sources and
+# the pipeline refuses. These tests are about the audit record, not authorization, so they
+# carry a scope that resolves to everything -- otherwise every assertion below would pass
+# for the wrong reason.
+VIEWER = PermissionScope.from_roles(["viewer"])
 
 # The stub speech backend reports no duration -- honestly, since it never decodes the
 # audio. A fake engine is layered over it here so `audio_duration_seconds` has a real value
@@ -51,8 +66,13 @@ def _build(audit: RecordingAudit) -> tuple[QAApplicationService, STTApplicationS
     qa_service = QAApplicationService(
         LanguageDetectionService(ScriptLanguageDetector(), SUPPORTED_LANGUAGES),
         GuardrailService(GuardrailStub()),
-        RetrievalService(
-            EmbeddingStub(), VectorStoreStub(), BM25KeywordRetriever(), RerankerStub()
+        RetrievalNode(
+            RetrievalService(
+                EmbeddingStub(),
+                RoleBasedSourceResolver(),
+                MultiSourceRetriever(VectorStoreStub(), BM25KeywordRetriever()),
+                RerankerStub(),
+            )
         ),
         GenerationService(ModelClientStub()),
         CitationValidationService(),
@@ -79,6 +99,7 @@ def _voice_request(
         roles=["viewer"],
         correlation_id=correlation_id,
         top_k=5,
+        permission_scope=VIEWER,
     )
 
 
@@ -129,6 +150,7 @@ async def test_a_typed_query_is_audited_as_text_with_no_speech_timings() -> None
             user_id="tech-42",
             roles=["viewer"],
             correlation_id="cid-typed",
+            permission_scope=VIEWER,
         )
     )
 
@@ -155,6 +177,7 @@ async def test_provenance_changes_the_audit_record_and_nothing_else() -> None:
             user_id="tech-42",
             roles=["viewer"],
             correlation_id="cid-voice",
+            permission_scope=VIEWER,
         )
     )
 

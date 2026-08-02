@@ -6,8 +6,12 @@ from app.domain.models import (
     DetectedLanguage,
     Embedding,
     GroundedAnswer,
+    PermissionScope,
     Question,
+    RetrievalCandidates,
     RetrievedChunk,
+    Source,
+    SourceSearchRequest,
     Transcript,
 )
 
@@ -36,7 +40,9 @@ class VectorStorePort(Protocol):
     is reserved for RetrievalService's business-capability method.
     """
 
-    async def search(self, embedding: Embedding, top_k: int = 5) -> list[RetrievedChunk]: ...
+    async def search(
+        self, embedding: Embedding, top_k: int = 5, source_id: str | None = None
+    ) -> list[RetrievedChunk]: ...
 
 
 class KeywordRetrieverPort(Protocol):
@@ -51,8 +57,34 @@ class KeywordRetrieverPort(Protocol):
     """
 
     async def search(
-        self, query_text: str, top_k: int = 5, language: str | None = None
+        self,
+        query_text: str,
+        top_k: int = 5,
+        language: str | None = None,
+        source_id: str | None = None,
     ) -> list[RetrievedChunk]: ...
+
+
+class SourceResolverPort(Protocol):
+    """Turns a caller's permission scope into the sources they may read.
+
+    Resolution only -- it performs no retrieval and reads no documents. Keeping the
+    authorization decision in its own port is what lets the retriever below trust the list
+    it is handed instead of re-deciding access per result.
+    """
+
+    async def resolve(self, scope: PermissionScope) -> list[Source]: ...
+
+
+class MultiSourceRetrieverPort(Protocol):
+    """Searches every source it is given, with both retrieval methods, and returns the
+    merged candidates.
+
+    It performs no authorization -- the sources on the request are already the permitted
+    ones -- and no reranking, which stays downstream in the untouched fusion tail.
+    """
+
+    async def search(self, request: SourceSearchRequest) -> RetrievalCandidates: ...
 
 
 class RerankerPort(Protocol):

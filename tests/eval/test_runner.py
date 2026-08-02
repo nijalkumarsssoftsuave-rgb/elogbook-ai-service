@@ -122,6 +122,18 @@ def test_surfaces_match_production_wiring(evaluation_surfaces: EvaluationSurface
     retrieval = evaluation_surfaces.retrieval_service
 
     assert type(retrieval._embedding) is type(dependencies.get_embedding_port())
-    assert type(retrieval._vector_store) is type(dependencies.get_vector_store_port())
-    assert type(retrieval._keyword_retriever) is type(dependencies.get_keyword_retriever_port())
+    assert type(retrieval._source_resolver) is type(dependencies.get_source_resolver_port())
+    assert type(retrieval._multi_source_retriever) is type(
+        dependencies.get_multi_source_retriever_port()
+    )
     assert type(retrieval._reranker) is type(dependencies.get_reranker_port())
+
+    # The multi-source retriever composes the two single-method retrievers, so those have
+    # to be checked one level down or a stub swap there would go unnoticed.
+    production_multi_source = dependencies.get_multi_source_retriever_port()
+    assert type(retrieval._multi_source_retriever._vector_store) is type(
+        production_multi_source._vector_store
+    )
+    assert type(retrieval._multi_source_retriever._keyword_retriever) is type(
+        production_multi_source._keyword_retriever
+    )

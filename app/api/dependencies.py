@@ -15,10 +15,13 @@ from app.application.ports import (
     KeywordRetrieverPort,
     LanguageDetectorPort,
     ModelClientPort,
+    MultiSourceRetrieverPort,
     RerankerPort,
+    SourceResolverPort,
     SpeechToTextPort,
     VectorStorePort,
 )
+from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
 from app.application.stt_service import STTApplicationService
@@ -27,6 +30,8 @@ from app.core.config import Settings, get_settings
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.model_serving.speech.faster_whisper_adapter import FasterWhisperAdapter
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
+from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
+from app.infrastructure.retrieval.source_resolver import RoleBasedSourceResolver
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.cache_stub import CacheStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
@@ -124,6 +129,19 @@ def get_speech_to_text_port() -> SpeechToTextPort:
     return build_speech_to_text_port(get_settings())
 
 
+@lru_cache
+def get_source_resolver_port() -> SourceResolverPort:
+    return RoleBasedSourceResolver()
+
+
+@lru_cache
+def get_multi_source_retriever_port() -> MultiSourceRetrieverPort:
+    # Composed from the two single-method retrievers rather than replacing them: dense and
+    # keyword search are still distinct capabilities, this adapter just fans them out
+    # across the permitted sources.
+    return MultiSourceRetriever(get_vector_store_port(), get_keyword_retriever_port())
+
+
 # Services: composed per request from the cached ports above.
 
 
@@ -138,11 +156,17 @@ def get_language_detection_service(
 
 def get_retrieval_service(
     embedding: EmbeddingPort = Depends(get_embedding_port),
-    vector_store: VectorStorePort = Depends(get_vector_store_port),
-    keyword_retriever: KeywordRetrieverPort = Depends(get_keyword_retriever_port),
+    source_resolver: SourceResolverPort = Depends(get_source_resolver_port),
+    multi_source_retriever: MultiSourceRetrieverPort = Depends(get_multi_source_retriever_port),
     reranker: RerankerPort = Depends(get_reranker_port),
 ) -> RetrievalService:
-    return RetrievalService(embedding, vector_store, keyword_retriever, reranker)
+    return RetrievalService(embedding, source_resolver, multi_source_retriever, reranker)
+
+
+def get_retrieval_node(
+    retrieval_service: RetrievalService = Depends(get_retrieval_service),
+) -> RetrievalNode:
+    return RetrievalNode(retrieval_service)
 
 
 def get_guardrail_service(
@@ -171,7 +195,7 @@ def get_audit_service(
 def get_qa_service(
     language_detection: LanguageDetectionService = Depends(get_language_detection_service),
     guardrail_service: GuardrailService = Depends(get_guardrail_service),
-    retrieval_service: RetrievalService = Depends(get_retrieval_service),
+    retrieval_node: RetrievalNode = Depends(get_retrieval_node),
     generation_service: GenerationService = Depends(get_generation_service),
     citation_validation_service: CitationValidationService = Depends(
         get_citation_validation_service
@@ -181,7 +205,7 @@ def get_qa_service(
     return QAApplicationService(
         language_detection,
         guardrail_service,
-        retrieval_service,
+        retrieval_node,
         generation_service,
         citation_validation_service,
         audit_service,
