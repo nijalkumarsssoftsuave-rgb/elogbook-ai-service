@@ -1,6 +1,6 @@
 from app.application.audit_service import AuditService
-from app.application.citation_resolution_service import CitationResolutionService
-from app.application.citation_validation_service import CitationValidationService
+from app.application.citation.citation_resolver import CitationResolver
+from app.application.citation.citation_validation_service import CitationValidationService
 from app.application.dto import QueryRequestDTO, TranscribeRequestDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -77,7 +77,7 @@ def _build(audit: RecordingAudit) -> tuple[QAApplicationService, STTApplicationS
         ),
         GenerationNode(ModelClientStub()),
         CitationValidationService(),
-        CitationResolutionService(),
+        CitationResolver(),
         AuditService(CacheStub(), audit),
     )
     stt_service = STTApplicationService(

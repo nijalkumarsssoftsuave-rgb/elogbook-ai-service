@@ -1,8 +1,8 @@
 import pytest
 
 from app.application.audit_service import AuditService
-from app.application.citation_resolution_service import CitationResolutionService
-from app.application.citation_validation_service import CitationValidationService
+from app.application.citation.citation_resolver import CitationResolver
+from app.application.citation.citation_validation_service import CitationValidationService
 from app.application.dto import QueryRequestDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -164,7 +164,7 @@ def _build_service(
         ),
         GenerationNode(model_client=FakeModelClient(calls, completions)),
         CitationValidationService(),
-        CitationResolutionService(),
+        CitationResolver(),
         AuditService(cache, audit),
     )
 

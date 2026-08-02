@@ -3,8 +3,8 @@ from functools import lru_cache
 from fastapi import Depends
 
 from app.application.audit_service import AuditService
-from app.application.citation_resolution_service import CitationResolutionService
-from app.application.citation_validation_service import CitationValidationService
+from app.application.citation.citation_resolver import CitationResolver
+from app.application.citation.citation_validation_service import CitationValidationService
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
 from app.application.ports import (
@@ -186,8 +186,8 @@ def get_citation_validation_service() -> CitationValidationService:
     return CitationValidationService()
 
 
-def get_citation_resolution_service() -> CitationResolutionService:
-    return CitationResolutionService()
+def get_citation_resolver() -> CitationResolver:
+    return CitationResolver()
 
 
 def get_audit_service(
@@ -205,9 +205,7 @@ def get_qa_service(
     citation_validation_service: CitationValidationService = Depends(
         get_citation_validation_service
     ),
-    citation_resolution_service: CitationResolutionService = Depends(
-        get_citation_resolution_service
-    ),
+    citation_resolver: CitationResolver = Depends(get_citation_resolver),
     audit_service: AuditService = Depends(get_audit_service),
 ) -> QAApplicationService:
     return QAApplicationService(
@@ -216,7 +214,7 @@ def get_qa_service(
         retrieval_node,
         generation_node,
         citation_validation_service,
-        citation_resolution_service,
+        citation_resolver,
         audit_service,
     )
 
