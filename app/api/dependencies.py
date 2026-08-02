@@ -33,6 +33,8 @@ from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
+from app.application.review.human_review_service import HumanReviewService
+from app.application.review.ports.review_queue_port import ReviewQueuePort
 from app.application.stt_service import STTApplicationService
 from app.application.transcription_service import TranscriptionService
 from app.core.config import Settings, get_settings
@@ -41,6 +43,7 @@ from app.infrastructure.model_serving.speech.faster_whisper_adapter import Faste
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
 from app.infrastructure.retrieval.permission_catalogue import ROLE_GRANTS, SOURCE_CATALOGUE
+from app.infrastructure.review.in_memory_review_queue import InMemoryReviewQueue
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.cache_stub import CacheStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
@@ -225,6 +228,19 @@ def get_grounding_decision_service() -> GroundingDecisionService:
     return GroundingDecisionService()
 
 
+@lru_cache
+def get_review_queue_port() -> ReviewQueuePort:
+    # Cached, because an in-memory queue that was rebuilt per request would drop every
+    # task it was handed. The durable adapters will not care either way.
+    return InMemoryReviewQueue()
+
+
+def get_human_review_service(
+    review_queue: ReviewQueuePort = Depends(get_review_queue_port),
+) -> HumanReviewService:
+    return HumanReviewService(review_queue=review_queue)
+
+
 def get_audit_service(
     cache: CachePort = Depends(get_cache_port),
     audit: AuditPort = Depends(get_audit_port),
@@ -245,6 +261,7 @@ def get_qa_service(
     grounding_decision_service: GroundingDecisionService = Depends(
         get_grounding_decision_service
     ),
+    human_review_service: HumanReviewService = Depends(get_human_review_service),
     audit_service: AuditService = Depends(get_audit_service),
 ) -> QAApplicationService:
     return QAApplicationService(
@@ -256,6 +273,7 @@ def get_qa_service(
         citation_validator,
         confidence_scoring_service,
         grounding_decision_service,
+        human_review_service,
         audit_service,
     )
 

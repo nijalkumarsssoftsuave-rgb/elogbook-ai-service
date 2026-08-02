@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
 from app.application.citation.citation_validator import CitationValidator
@@ -12,6 +14,8 @@ from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
 from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
+from app.application.review.human_review_service import HumanReviewService
+from app.domain.confidence import ConfidenceResult
 from app.domain.models import GroundedAnswer, Question, RetrievedChunk
 
 
@@ -38,6 +42,7 @@ class QAApplicationService:
         citation_validator: CitationValidator,
         confidence_scoring_service: ConfidenceScoringService,
         grounding_decision_service: GroundingDecisionService,
+        human_review_service: HumanReviewService,
         audit_service: AuditService,
     ) -> None:
         self._language_detection = language_detection
@@ -48,6 +53,7 @@ class QAApplicationService:
         self._citation_validator = citation_validator
         self._confidence_scoring_service = confidence_scoring_service
         self._grounding_decision_service = grounding_decision_service
+        self._human_review_service = human_review_service
         self._audit_service = audit_service
 
     async def execute(self, request: QueryRequestDTO) -> QueryResultDTO:
@@ -74,8 +80,22 @@ class QAApplicationService:
         )
         chunks = await self._guardrail_service.screen_retrieved_chunks(chunks)
 
-        answer = await self._generate_and_validate(question, chunks, request.top_k)
-        answer = await self._guardrail_service.check_answer(answer)
+        scored = await self._generate_and_validate(question, chunks, request.top_k)
+        answer = await self._guardrail_service.check_answer(scored.delivered)
+
+        if scored.confidence is not None:
+            # Routing reads the answer and creates work; it returns nothing into the
+            # flow, so there is no path by which queueing a review could change what
+            # the caller receives. It is handed the *generated* answer rather than the
+            # delivered one, because a withheld answer is exactly what a reviewer needs
+            # to see.
+            await self._human_review_service.route(
+                question,
+                scored.generated,
+                scored.confidence,
+                chunks,
+                request.correlation_id,
+            )
 
         # Provenance is handed to the audit trail and nowhere else -- this service does not
         # branch on how the question arrived, and must not start to.
@@ -86,7 +106,7 @@ class QAApplicationService:
 
     async def _generate_and_validate(
         self, question: Question, chunks: list[RetrievedChunk], requested_top_k: int
-    ) -> GroundedAnswer:
+    ) -> "_ScoredAnswer":
         """Generates an answer, resolves its citations, and keeps it only if they hold up.
 
                 generate -> resolve -> validate -+- valid   -> return the answer
@@ -119,8 +139,27 @@ class QAApplicationService:
                 # not from inside the retry: a thin score reflects thin evidence, and
                 # retrying regenerates the answer without re-running retrieval, so a
                 # second attempt would be asked to fix something it cannot reach.
-                return self._grounding_decision_service.decide(
-                    grounded.model_copy(update={"confidence": confidence.score}),
-                    confidence,
+                scored = grounded.model_copy(update={"confidence": confidence.score})
+                return _ScoredAnswer(
+                    delivered=self._grounding_decision_service.decide(scored, confidence),
+                    generated=scored,
+                    confidence=confidence,
                 )
-        return GroundedAnswer.refusal()
+        # Nothing was ever scored, so there is nothing for a reviewer to weigh up: this
+        # is an answer that could not be grounded at all, not a weak one.
+        refusal = GroundedAnswer.refusal()
+        return _ScoredAnswer(delivered=refusal, generated=refusal, confidence=None)
+
+
+class _ScoredAnswer(NamedTuple):
+    """What one pass of the answer pipeline produced.
+
+    `delivered` and `generated` are the same object unless the grounding decision withheld
+    the answer. Keeping both is what lets review routing see the answer that was refused --
+    a review task holding only the canned refusal would be useless to the reviewer it was
+    created for.
+    """
+
+    delivered: GroundedAnswer
+    generated: GroundedAnswer
+    confidence: ConfidenceResult | None

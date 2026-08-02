@@ -17,6 +17,7 @@ from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
+from app.application.review.human_review_service import HumanReviewService
 from app.domain.citation import Citation
 from app.domain.exceptions import UnsupportedLanguageError
 from app.domain.models import (
@@ -32,6 +33,7 @@ from app.domain.models import (
     SourceSearchRequest,
 )
 from app.domain.permission import PermissionScope, SearchScope, Source
+from app.infrastructure.review.in_memory_review_queue import InMemoryReviewQueue
 
 # The services under test are concrete classes, so the fakes sit one level down at the
 # port boundary: every collaborator below is a real service wrapping fake ports.
@@ -183,6 +185,7 @@ def _build_service(
     language_code: str = "en",
     generation_node: GenerationNode | PhantomGenerationNode | None = None,
     confidence_policy: ConfidencePolicy = DEFAULT_CONFIDENCE_POLICY,
+    review_queue: object | None = None,
 ) -> QAApplicationService:
     return QAApplicationService(
         LanguageDetectionService(
@@ -200,6 +203,7 @@ def _build_service(
         CitationValidator(),
         ConfidenceScoringService(confidence_policy),
         GroundingDecisionService(),
+        HumanReviewService(review_queue or InMemoryReviewQueue()),
         AuditService(cache, audit),
     )
 
@@ -454,3 +458,166 @@ async def test_a_high_confidence_answer_still_reaches_the_caller(
     assert result.refused is False
     assert result.citations
     assert result.confidence is not None
+
+
+# --- ES-336: routing to human review -----------------------------------------------------------
+
+
+class ExplodingReviewQueue:
+    def __init__(self) -> None:
+        self.attempts = 0
+
+    async def enqueue(self, request) -> None:
+        self.attempts += 1
+        raise RuntimeError("the review queue is down")
+
+
+# The fakes retrieve one chunk against a top_k of three, which scores 0.67 -- NEEDS_REVIEW
+# under the shipped thresholds, and correctly so. A permissive policy is what makes the HIGH
+# path reachable here, the mirror of _REFUSE_ALMOST_EVERYTHING below.
+_ACCEPT_ALMOST_EVERYTHING = ConfidencePolicy(
+    retrieval_weight=0.4,
+    reranker_weight=0.2,
+    citation_weight=0.4,
+    refusal_threshold=0.05,
+    review_threshold=0.1,
+)
+
+
+async def test_a_confidently_supported_answer_queues_no_review(
+    request_dto: QueryRequestDTO,
+) -> None:
+    calls: list[str] = []
+    queue = InMemoryReviewQueue()
+    service = _build_service(
+        calls,
+        [GROUNDED_COMPLETION],
+        FakeCache(calls),
+        FakeAudit(calls),
+        confidence_policy=_ACCEPT_ALMOST_EVERYTHING,
+        review_queue=queue,
+    )
+
+    result = await service.execute(request_dto)
+
+    assert result.refused is False
+    assert result.confidence is not None
+    assert queue.pending == []
+
+
+async def test_a_merely_reviewable_answer_is_still_delivered_and_still_queued(
+    request_dto: QueryRequestDTO,
+) -> None:
+    """The middle band under the shipped policy: the caller gets the answer, and a reviewer
+    gets a task about it. Routing and delivery are separate decisions.
+    """
+    calls: list[str] = []
+    queue = InMemoryReviewQueue()
+    service = _build_service(
+        calls, [GROUNDED_COMPLETION], FakeCache(calls), FakeAudit(calls), review_queue=queue
+    )
+
+    result = await service.execute(request_dto)
+
+    assert result.refused is False
+    assert result.citations
+    assert len(queue.pending) == 1
+    assert queue.pending[0].was_withheld is False
+
+
+async def test_a_weakly_supported_answer_queues_exactly_one_review(
+    request_dto: QueryRequestDTO,
+) -> None:
+    calls: list[str] = []
+    queue = InMemoryReviewQueue()
+    service = _build_service(
+        calls,
+        [GROUNDED_COMPLETION],
+        FakeCache(calls),
+        FakeAudit(calls),
+        confidence_policy=_REFUSE_ALMOST_EVERYTHING,
+        review_queue=queue,
+    )
+
+    await service.execute(request_dto)
+
+    assert len(queue.pending) == 1
+
+
+async def test_the_queued_review_holds_the_answer_the_caller_never_saw(
+    request_dto: QueryRequestDTO,
+) -> None:
+    """The two halves of ES-335 and ES-336 meeting: the caller gets a refusal, the reviewer
+    gets what was refused.
+    """
+    calls: list[str] = []
+    queue = InMemoryReviewQueue()
+    service = _build_service(
+        calls,
+        [GROUNDED_COMPLETION],
+        FakeCache(calls),
+        FakeAudit(calls),
+        confidence_policy=_REFUSE_ALMOST_EVERYTHING,
+        review_queue=queue,
+    )
+
+    result = await service.execute(request_dto)
+
+    assert result.answer_text == GroundedAnswer.REFUSAL_TEXT
+    assert result.citations == []
+
+    review = queue.pending[0]
+    assert review.answer_text == "The check was completed [c1]."
+    assert [citation.chunk_id for citation in review.citations] == [EVIDENCE.chunk_id]
+    assert [chunk.chunk_id for chunk in review.evidence] == [EVIDENCE.chunk_id]
+    assert review.correlation_id == "cid-1"
+    assert review.question.text == request_dto.query
+
+
+async def test_a_broken_review_queue_does_not_change_the_answer(
+    request_dto: QueryRequestDTO,
+) -> None:
+    """The agreed failure behaviour, end to end. The answer was already decided; an internal
+    delivery problem must not turn into a failed request or a different response.
+    """
+    calls: list[str] = []
+    queue = ExplodingReviewQueue()
+    working = _build_service(
+        calls, [GROUNDED_COMPLETION], FakeCache(calls), FakeAudit(calls),
+        confidence_policy=_REFUSE_ALMOST_EVERYTHING,
+    )
+    expected = await working.execute(request_dto)
+
+    calls = []
+    broken = _build_service(
+        calls,
+        [GROUNDED_COMPLETION],
+        FakeCache(calls),
+        FakeAudit(calls),
+        confidence_policy=_REFUSE_ALMOST_EVERYTHING,
+        review_queue=queue,
+    )
+
+    result = await broken.execute(request_dto)
+
+    assert queue.attempts == 1
+    assert result == expected
+
+
+async def test_an_ungroundable_answer_queues_no_review(
+    request_dto: QueryRequestDTO,
+) -> None:
+    """A refusal for want of citations was never scored, so there is no confidence for a
+    reviewer to weigh up -- this is an answer that could not be grounded at all, not a weak
+    one.
+    """
+    calls: list[str] = []
+    queue = InMemoryReviewQueue()
+    service = _build_service(
+        calls, [UNGROUNDED_COMPLETION], FakeCache(calls), FakeAudit(calls), review_queue=queue
+    )
+
+    result = await service.execute(request_dto)
+
+    assert result.refused is True
+    assert queue.pending == []

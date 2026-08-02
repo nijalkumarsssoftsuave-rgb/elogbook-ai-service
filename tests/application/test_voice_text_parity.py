@@ -17,6 +17,7 @@ from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
+from app.application.review.human_review_service import HumanReviewService
 from app.application.stt_service import STTApplicationService
 from app.application.transcription_service import TranscriptionService
 from app.domain.models import GroundedAnswer
@@ -25,6 +26,7 @@ from app.infrastructure.language.script_language_detector import ScriptLanguageD
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
 from app.infrastructure.retrieval.permission_catalogue import ROLE_GRANTS, SOURCE_CATALOGUE
+from app.infrastructure.review.in_memory_review_queue import InMemoryReviewQueue
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
 from app.infrastructure.stubs.guardrail_stub import GuardrailStub
@@ -83,6 +85,7 @@ def _build_qa_service(cache: RecordingCache) -> QAApplicationService:
         CitationValidator(),
         ConfidenceScoringService(DEFAULT_CONFIDENCE_POLICY),
         GroundingDecisionService(),
+        HumanReviewService(InMemoryReviewQueue()),
         AuditService(cache, AuditStub()),
     )
 

@@ -30,11 +30,13 @@ from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
+from app.application.review.human_review_service import HumanReviewService
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.fixture_corpus import DEFAULT_FIXTURE_CORPUS, FixtureDocument
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
 from app.infrastructure.retrieval.permission_catalogue import ROLE_GRANTS, SOURCE_CATALOGUE
+from app.infrastructure.review.in_memory_review_queue import InMemoryReviewQueue
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.cache_stub import CacheStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
@@ -93,6 +95,7 @@ def build_surfaces(corpus: list[FixtureDocument] | None = None) -> EvaluationSur
         CitationValidator(),
         ConfidenceScoringService(DEFAULT_CONFIDENCE_POLICY),
         GroundingDecisionService(),
+        HumanReviewService(InMemoryReviewQueue()),
         AuditService(CacheStub(), AuditStub()),
     )
     return EvaluationSurfaces(
