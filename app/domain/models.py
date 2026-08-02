@@ -96,17 +96,33 @@ class Source(BaseModel):
     display_name: str
 
 
-class RetrievalSearchContext(BaseModel):
-    """A question as retrieval understands it: what was asked, what the asker may read,
-    and how much evidence to come back with.
+class SearchScope(BaseModel):
+    """The concrete search set a caller is entitled to: which sources, narrowed by which
+    organisational filters.
 
-    Built at the retrieval node and consumed by RetrievalService, so the two ends of that
-    hand-off cannot drift apart argument by argument.
+    The output of permission resolution and the only thing retrieval consults about access.
+    Where `PermissionScope` says *who the caller is*, this says *what that entitles them to
+    search* -- and separating the two is what lets entitlements grow richer without the
+    caller's identity changing shape.
+
+    An empty filter list means **no constraint**, not "nothing allowed": the default scope
+    over a source is everything in it. A non-empty one is enforced strictly, so a document
+    that does not declare the attribute cannot satisfy it.
     """
 
-    question: Question
-    permission_scope: PermissionScope
-    top_k: int = 5
+    sources: list[Source] = Field(default_factory=list)
+    area_ids: list[str] = Field(default_factory=list)
+    department_ids: list[str] = Field(default_factory=list)
+    company_ids: list[str] = Field(default_factory=list)
+
+    @property
+    def is_empty(self) -> bool:
+        """No sources means nothing to search, whatever the filters say."""
+        return not self.sources
+
+    @property
+    def source_ids(self) -> list[str]:
+        return [source.source_id for source in self.sources]
 
 
 class SourceSearchRequest(BaseModel):
@@ -119,7 +135,7 @@ class SourceSearchRequest(BaseModel):
     query_text: str
     query_embedding: Embedding
     language: str | None = None
-    sources: list[Source] = Field(default_factory=list)
+    search_scope: SearchScope = Field(default_factory=SearchScope)
     limit_per_source: int = 20
 
 

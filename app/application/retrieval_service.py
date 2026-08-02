@@ -3,11 +3,11 @@ from app.application.ports import (
     EmbeddingPort,
     MultiSourceRetrieverPort,
     RerankerPort,
-    SourceResolverPort,
 )
 from app.domain.models import (
-    RetrievalSearchContext,
+    Question,
     RetrievedChunk,
+    SearchScope,
     SourceSearchRequest,
 )
 
@@ -15,17 +15,13 @@ from app.domain.models import (
 class RetrievalService:
     """Owns the retrieve -> rerank half of the pipeline:
 
-    resolve the sources the caller may read -> search all of them -> merge the candidates
-    -> fuse dense and keyword results with RRF -> rerank -> return the top_k evidence.
+    search every source in the caller's scope -> merge the candidates -> fuse dense and
+    keyword results with RRF -> rerank -> return the top_k evidence.
 
-    QAApplicationService sees only `retrieve()` and the chunks it returns. Source
-    resolution, embeddings, the vector store, BM25, fusion and the reranker are all
-    internal to this service.
-
-    Authorization happens once, at the top: the resolver decides which sources are in
-    play, and everything below it operates on that decision rather than re-checking access
-    per result. A permission failure therefore looks like an empty source list, not like a
-    filter someone downstream might forget to apply.
+    It is handed an already-resolved SearchScope rather than resolving one itself, so
+    authorization is a decision made once, upstream, by the component named for it. That
+    keeps this service about searching -- embeddings, the vector store, BM25, fusion and
+    the reranker are its internals, and access rules are not among them.
     """
 
     # Each source is asked for more candidates than the caller wants, so fusion and
@@ -35,24 +31,24 @@ class RetrievalService:
     def __init__(
         self,
         embedding: EmbeddingPort,
-        source_resolver: SourceResolverPort,
         multi_source_retriever: MultiSourceRetrieverPort,
         reranker: RerankerPort,
     ) -> None:
         self._embedding = embedding
-        self._source_resolver = source_resolver
         self._multi_source_retriever = multi_source_retriever
         self._reranker = reranker
 
-    async def retrieve(self, context: RetrievalSearchContext) -> list[RetrievedChunk]:
-        question, top_k = context.question, context.top_k
-
-        sources = await self._source_resolver.resolve(context.permission_scope)
-        if not sources:
+    async def retrieve(
+        self, question: Question, search_scope: SearchScope, top_k: int = 5
+    ) -> list[RetrievedChunk]:
+        if search_scope.is_empty:
             # Nothing permitted, nothing retrieved. Returning early rather than searching
             # an unrestricted index is the point of the whole arrangement; the pipeline
             # above then has no evidence and refuses, which is the correct answer to a
             # question the caller is not entitled to have answered.
+            #
+            # This guard stays here rather than at the caller on purpose. Since the scope
+            # now arrives from outside, this is the last place that can fail closed.
             return []
 
         pool_size = max(top_k, self._CANDIDATE_POOL_SIZE)
@@ -64,7 +60,7 @@ class RetrievalService:
                 query_text=question.text,
                 query_embedding=query_embedding,
                 language=question.language,
-                sources=sources,
+                search_scope=search_scope,
                 limit_per_source=pool_size,
             )
         )

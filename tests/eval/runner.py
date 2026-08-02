@@ -6,7 +6,7 @@ produce identical output apart from `generated_at`.
 """
 
 from app.application.dto import QueryRequestDTO
-from app.domain.models import PermissionScope, Question, RetrievalSearchContext
+from app.domain.models import PermissionScope, Question
 from tests.eval import metrics
 from tests.eval.loader import LanguageThresholds
 from tests.eval.schema import (
@@ -82,12 +82,8 @@ class EvaluationRunner:
                 roles=self._roles,
                 language=case.language,
             )
-            chunks = await self._surfaces.retrieval_service.retrieve(
-                RetrievalSearchContext(
-                    question=question,
-                    permission_scope=PermissionScope.from_roles(self._roles),
-                    top_k=self._top_k,
-                )
+            chunks = await self._surfaces.retrieval_node.run(
+                question, PermissionScope.from_roles(self._roles), top_k=self._top_k
             )
         return [chunk.chunk_id for chunk in chunks]
 
@@ -144,12 +140,8 @@ class EvaluationRunner:
             )
             retrieved = [
                 chunk.chunk_id
-                for chunk in await self._surfaces.retrieval_service.retrieve(
-                    RetrievalSearchContext(
-                        question=question,
-                        permission_scope=PermissionScope.from_roles(self._roles),
-                        top_k=self._top_k,
-                    )
+                for chunk in await self._surfaces.retrieval_node.run(
+                    question, PermissionScope.from_roles(self._roles), top_k=self._top_k
                 )
             ]
             result = await self._surfaces.qa_service.execute(

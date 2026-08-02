@@ -117,7 +117,7 @@ def test_the_source_catalogue_ids_are_the_ones_the_corpus_uses() -> None:
     set of documents that does not exist, which looks exactly like "no results".
     """
     from app.infrastructure.retrieval.fixture_corpus import DEFAULT_FIXTURE_CORPUS
-    from app.infrastructure.retrieval.source_resolver import SOURCE_CATALOGUE
+    from app.infrastructure.retrieval.permission_resolver import SOURCE_CATALOGUE
 
     corpus_sources = {document.source_id for document in DEFAULT_FIXTURE_CORPUS}
 

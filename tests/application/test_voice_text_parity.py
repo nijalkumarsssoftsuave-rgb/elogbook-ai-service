@@ -15,7 +15,7 @@ from app.domain.models import GroundedAnswer, PermissionScope
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
-from app.infrastructure.retrieval.source_resolver import RoleBasedSourceResolver
+from app.infrastructure.retrieval.permission_resolver import PermissionResolver
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
 from app.infrastructure.stubs.guardrail_stub import GuardrailStub
@@ -61,12 +61,12 @@ def _build_qa_service(cache: RecordingCache) -> QAApplicationService:
         LanguageDetectionService(ScriptLanguageDetector(), SUPPORTED_LANGUAGES),
         GuardrailService(GuardrailStub()),
         RetrievalNode(
+            PermissionResolver(),
             RetrievalService(
                 EmbeddingStub(),
-                RoleBasedSourceResolver(),
                 MultiSourceRetriever(VectorStoreStub(), BM25KeywordRetriever()),
                 RerankerStub(),
-            )
+            ),
         ),
         GenerationService(ModelClientStub()),
         CitationValidationService(),

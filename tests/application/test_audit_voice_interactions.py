@@ -19,7 +19,7 @@ from app.domain.models import (
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
-from app.infrastructure.retrieval.source_resolver import RoleBasedSourceResolver
+from app.infrastructure.retrieval.permission_resolver import PermissionResolver
 from app.infrastructure.stubs.cache_stub import CacheStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
 from app.infrastructure.stubs.guardrail_stub import GuardrailStub
@@ -67,12 +67,12 @@ def _build(audit: RecordingAudit) -> tuple[QAApplicationService, STTApplicationS
         LanguageDetectionService(ScriptLanguageDetector(), SUPPORTED_LANGUAGES),
         GuardrailService(GuardrailStub()),
         RetrievalNode(
+            PermissionResolver(),
             RetrievalService(
                 EmbeddingStub(),
-                RoleBasedSourceResolver(),
                 MultiSourceRetriever(VectorStoreStub(), BM25KeywordRetriever()),
                 RerankerStub(),
-            )
+            ),
         ),
         GenerationService(ModelClientStub()),
         CitationValidationService(),

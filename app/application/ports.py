@@ -10,7 +10,7 @@ from app.domain.models import (
     Question,
     RetrievalCandidates,
     RetrievedChunk,
-    Source,
+    SearchScope,
     SourceSearchRequest,
     Transcript,
 )
@@ -65,15 +65,15 @@ class KeywordRetrieverPort(Protocol):
     ) -> list[RetrievedChunk]: ...
 
 
-class SourceResolverPort(Protocol):
-    """Turns a caller's permission scope into the sources they may read.
+class PermissionResolverPort(Protocol):
+    """Turns a caller's permission scope into the search set they are entitled to.
 
     Resolution only -- it performs no retrieval and reads no documents. Keeping the
-    authorization decision in its own port is what lets the retriever below trust the list
-    it is handed instead of re-deciding access per result.
+    authorization decision in its own port is what lets the retrieval below it trust the
+    scope it is handed instead of re-deciding access per result.
     """
 
-    async def resolve(self, scope: PermissionScope) -> list[Source]: ...
+    async def resolve(self, scope: PermissionScope) -> SearchScope: ...
 
 
 class MultiSourceRetrieverPort(Protocol):

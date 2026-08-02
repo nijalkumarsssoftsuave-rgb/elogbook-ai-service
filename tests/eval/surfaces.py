@@ -26,7 +26,7 @@ from app.infrastructure.language.script_language_detector import ScriptLanguageD
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.fixture_corpus import DEFAULT_FIXTURE_CORPUS, FixtureDocument
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
-from app.infrastructure.retrieval.source_resolver import RoleBasedSourceResolver
+from app.infrastructure.retrieval.permission_resolver import PermissionResolver
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.cache_stub import CacheStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
@@ -46,6 +46,9 @@ EVALUATION_LANGUAGES = ["en", "ar"]
 class EvaluationSurfaces:
     keyword_retriever: BM25KeywordRetriever
     retrieval_service: RetrievalService
+    # The node is what the runner drives, because permission resolution now happens there
+    # rather than inside the service.
+    retrieval_node: RetrievalNode
     qa_service: QAApplicationService
     corpus: tuple[FixtureDocument, ...]
 
@@ -65,16 +68,17 @@ def build_surfaces(corpus: list[FixtureDocument] | None = None) -> EvaluationSur
     """
     documents = list(DEFAULT_FIXTURE_CORPUS if corpus is None else corpus)
     keyword_retriever = BM25KeywordRetriever(corpus=documents)
+    permission_resolver = PermissionResolver()
     retrieval_service = RetrievalService(
         EmbeddingStub(),
-        RoleBasedSourceResolver(),
         MultiSourceRetriever(VectorStoreStub(), keyword_retriever),
         RerankerStub(),
     )
+    retrieval_node = RetrievalNode(permission_resolver, retrieval_service)
     qa_service = QAApplicationService(
         LanguageDetectionService(ScriptLanguageDetector(), list(EVALUATION_LANGUAGES)),
         GuardrailService(GuardrailStub()),
-        RetrievalNode(retrieval_service),
+        retrieval_node,
         GenerationService(ModelClientStub()),
         CitationValidationService(),
         AuditService(CacheStub(), AuditStub()),
@@ -82,6 +86,7 @@ def build_surfaces(corpus: list[FixtureDocument] | None = None) -> EvaluationSur
     return EvaluationSurfaces(
         keyword_retriever=keyword_retriever,
         retrieval_service=retrieval_service,
+        retrieval_node=retrieval_node,
         qa_service=qa_service,
         corpus=tuple(documents),
     )

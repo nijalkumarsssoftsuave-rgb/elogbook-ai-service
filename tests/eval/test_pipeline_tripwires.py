@@ -6,7 +6,7 @@ build here is good news that needs a follow-up action.
 """
 
 from app.application.dto import QueryRequestDTO
-from app.domain.models import PermissionScope, Question, RetrievalSearchContext
+from app.domain.models import PermissionScope, Question
 from tests.eval.surfaces import EvaluationSurfaces
 
 # ES-327 made retrieval fail closed: a request with no permission scope resolves to no
@@ -25,12 +25,8 @@ async def test_rank_one_of_retrieval_is_always_the_dense_stub(
     evaluation_surfaces: EvaluationSurfaces,
 ) -> None:
     for text in _ENGLISH_QUESTIONS:
-        chunks = await evaluation_surfaces.retrieval_service.retrieve(
-            RetrievalSearchContext(
-                question=Question(text=text, user_id="tripwire", language="en"),
-                permission_scope=_SCOPE,
-                top_k=5,
-            )
+        chunks = await evaluation_surfaces.retrieval_node.run(
+            Question(text=text, user_id="tripwire", language="en"), _SCOPE, top_k=5
         )
         assert chunks[0].chunk_id == "dense-stub-chunk-1", (
             "Rank 1 is no longer the dense stub, so the vector store may now be real. "

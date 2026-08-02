@@ -122,7 +122,9 @@ def test_surfaces_match_production_wiring(evaluation_surfaces: EvaluationSurface
     retrieval = evaluation_surfaces.retrieval_service
 
     assert type(retrieval._embedding) is type(dependencies.get_embedding_port())
-    assert type(retrieval._source_resolver) is type(dependencies.get_source_resolver_port())
+    assert type(
+        evaluation_surfaces.retrieval_node._permission_resolver
+    ) is type(dependencies.get_permission_resolver_port())
     assert type(retrieval._multi_source_retriever) is type(
         dependencies.get_multi_source_retriever_port()
     )
