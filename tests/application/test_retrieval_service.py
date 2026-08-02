@@ -4,10 +4,9 @@ from app.domain.models import (
     Question,
     RetrievalCandidates,
     RetrievedChunk,
-    SearchScope,
-    Source,
     SourceSearchRequest,
 )
+from app.domain.permission import SearchScope, Source
 
 # The service is handed an already-resolved SearchScope; resolution itself is covered in
 # tests/application/test_permission_resolver.py, and the per-method retrievers live

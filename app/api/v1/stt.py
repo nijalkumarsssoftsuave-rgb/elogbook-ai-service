@@ -11,7 +11,7 @@ from app.application.transcription_service import enforce_size_limit
 from app.core.config import Settings, get_settings
 from app.core.correlation import get_correlation_id
 from app.core.security import RbacContext, get_rbac_context
-from app.domain.models import PermissionScope
+from app.domain.permission import PermissionScope
 
 router = APIRouter(prefix="/api/v1/stt", tags=["stt"])
 

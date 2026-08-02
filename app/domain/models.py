@@ -5,6 +5,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, Field, computed_field, field_validator
 
 from app.domain.citation import Citation, ResolvedCitation
+from app.domain.permission import SearchScope
 
 
 class DetectedLanguage(BaseModel):
@@ -102,58 +103,6 @@ class GroundedAnswer(BaseModel):
             is_grounded=False,
             refused=True,
         )
-
-
-class PermissionScope(BaseModel):
-    """What the caller is entitled to read.
-
-    Deliberately separate from `Question.roles`, which records *who asked*. Both derive
-    from the same token claim today, but they answer different questions and will diverge:
-    a scope is where site restrictions and classification levels belong, and adding them
-    should not change what a Question is.
-    """
-
-    roles: list[str] = Field(default_factory=list)
-
-    @classmethod
-    def from_roles(cls, roles: list[str]) -> "PermissionScope":
-        return cls(roles=list(roles))
-
-
-class Source(BaseModel):
-    """One logical corpus that retrieval can be pointed at."""
-
-    source_id: str
-    display_name: str
-
-
-class SearchScope(BaseModel):
-    """The concrete search set a caller is entitled to: which sources, narrowed by which
-    organisational filters.
-
-    The output of permission resolution and the only thing retrieval consults about access.
-    Where `PermissionScope` says *who the caller is*, this says *what that entitles them to
-    search* -- and separating the two is what lets entitlements grow richer without the
-    caller's identity changing shape.
-
-    An empty filter list means **no constraint**, not "nothing allowed": the default scope
-    over a source is everything in it. A non-empty one is enforced strictly, so a document
-    that does not declare the attribute cannot satisfy it.
-    """
-
-    sources: list[Source] = Field(default_factory=list)
-    area_ids: list[str] = Field(default_factory=list)
-    department_ids: list[str] = Field(default_factory=list)
-    company_ids: list[str] = Field(default_factory=list)
-
-    @property
-    def is_empty(self) -> bool:
-        """No sources means nothing to search, whatever the filters say."""
-        return not self.sources
-
-    @property
-    def source_ids(self) -> list[str]:
-        return [source.source_id for source in self.sources]
 
 
 class SourceSearchRequest(BaseModel):

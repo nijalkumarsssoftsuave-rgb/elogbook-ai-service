@@ -7,14 +7,13 @@ from app.domain.models import (
     Embedding,
     GenerationRequest,
     GroundedAnswer,
-    PermissionScope,
     Question,
     RetrievalCandidates,
     RetrievedChunk,
-    SearchScope,
     SourceSearchRequest,
     Transcript,
 )
+from app.domain.permission import PermissionScope, SearchScope
 
 
 class LanguageDetectorPort(Protocol):

@@ -1,6 +1,7 @@
 from app.application.ports import PermissionResolverPort
 from app.application.retrieval_service import RetrievalService
-from app.domain.models import PermissionScope, Question, RetrievedChunk
+from app.domain.models import Question, RetrievedChunk
+from app.domain.permission import PermissionScope
 
 
 class RetrievalNode:

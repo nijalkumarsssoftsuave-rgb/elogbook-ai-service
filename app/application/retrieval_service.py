@@ -4,12 +4,8 @@ from app.application.ports import (
     MultiSourceRetrieverPort,
     RerankerPort,
 )
-from app.domain.models import (
-    Question,
-    RetrievedChunk,
-    SearchScope,
-    SourceSearchRequest,
-)
+from app.domain.models import Question, RetrievedChunk, SourceSearchRequest
+from app.domain.permission import SearchScope
 
 
 class RetrievalService:

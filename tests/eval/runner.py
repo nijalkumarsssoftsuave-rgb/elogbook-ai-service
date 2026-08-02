@@ -6,7 +6,8 @@ produce identical output apart from `generated_at`.
 """
 
 from app.application.dto import QueryRequestDTO
-from app.domain.models import PermissionScope, Question
+from app.domain.models import Question
+from app.domain.permission import PermissionScope
 from tests.eval import metrics
 from tests.eval.loader import LanguageThresholds
 from tests.eval.schema import (

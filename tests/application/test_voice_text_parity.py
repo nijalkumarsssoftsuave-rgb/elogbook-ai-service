@@ -13,7 +13,8 @@ from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
 from app.application.stt_service import STTApplicationService
 from app.application.transcription_service import TranscriptionService
-from app.domain.models import GroundedAnswer, PermissionScope
+from app.domain.models import GroundedAnswer
+from app.domain.permission import PermissionScope
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
