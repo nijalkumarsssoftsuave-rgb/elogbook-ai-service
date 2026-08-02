@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from app.domain.citation import ResolvedCitation
 from app.domain.models import GroundedAnswer, QueryProvenance, Transcript
 from app.domain.permission import PermissionScope
-from app.domain.query import QueryFilters
+from app.domain.retrieval import RetrievalFilter
 
 
 class QueryRequestDTO(BaseModel):
@@ -21,7 +21,7 @@ class QueryRequestDTO(BaseModel):
     # What the caller asked to narrow the search to. Deliberately separate from
     # permission_scope: one is an entitlement, the other a preference, and a filter can
     # only ever shrink what the scope already permits.
-    filters: QueryFilters = Field(default_factory=QueryFilters)
+    filters: RetrievalFilter = Field(default_factory=RetrievalFilter)
 
 
 class QueryResultDTO(BaseModel):

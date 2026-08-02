@@ -5,7 +5,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, Field, computed_field, field_validator
 
 from app.domain.citation import Citation, ResolvedCitation
-from app.domain.permission import SearchScope
+from app.domain.retrieval import EffectiveSearchScope
 
 
 class DetectedLanguage(BaseModel):
@@ -122,7 +122,10 @@ class SourceSearchRequest(BaseModel):
     query_text: str
     query_embedding: Embedding
     language: str | None = None
-    search_scope: SearchScope = Field(default_factory=SearchScope)
+    # The entitlement already narrowed by the caller's filters. Retrieval is handed the
+    # combined result rather than the two halves, so no retriever has to know how they
+    # combine -- there is exactly one place that decides.
+    search_scope: EffectiveSearchScope = Field(default_factory=EffectiveSearchScope)
     limit_per_source: int = 20
 
 

@@ -6,7 +6,7 @@ from app.application.ports import (
 )
 from app.domain.models import Question, RetrievedChunk, SourceSearchRequest
 from app.domain.permission import SearchScope
-from app.domain.query import QueryFilters
+from app.domain.retrieval import EffectiveSearchScope, RetrievalFilter
 
 
 class RetrievalService:
@@ -40,26 +40,26 @@ class RetrievalService:
         question: Question,
         search_scope: SearchScope,
         top_k: int = 5,
-        filters: QueryFilters | None = None,
+        filters: RetrievalFilter | None = None,
     ) -> list[RetrievedChunk]:
         """Searches the permitted scope and returns the top_k evidence.
 
-        `filters` is accepted and **not yet applied**. ES-337 carries the caller's filters
-        this far and stops there deliberately: plumbing them through in one change and
-        deciding what they mean to retrieval in the next keeps the second decision
-        reviewable on its own. Until then a filtered request returns the same results as an
-        unfiltered one.
+        The caller's filters are combined with their entitlement into one
+        EffectiveSearchScope, and that is what travels down. Combining here rather than in
+        each retriever means the rule -- a filter narrows, never widens -- is applied once,
+        by the layer that has both halves in hand.
 
-        It is a parameter rather than something this service stores. Stashing the request's
-        filters on the instance would give a shared service per-request state, and two
-        concurrent queries would then be able to read each other's -- which is a far more
-        expensive bug than an unused argument.
+        The filters are a parameter rather than something this service stores. Stashing them
+        on the instance would give a shared service per-request state, and two concurrent
+        queries could then read each other's.
         """
-        if search_scope.is_empty:
-            # Nothing permitted, nothing retrieved. Returning early rather than searching
-            # an unrestricted index is the point of the whole arrangement; the pipeline
-            # above then has no evidence and refuses, which is the correct answer to a
-            # question the caller is not entitled to have answered.
+        effective_scope = EffectiveSearchScope.combine(search_scope, filters)
+        if effective_scope.is_empty:
+            # Nothing permitted, or nothing that satisfies both the entitlement and the
+            # request. Returning early rather than searching an unrestricted index is the
+            # point of the whole arrangement; the pipeline above then has no evidence and
+            # refuses, which is the correct answer to a question the caller is not
+            # entitled to -- or did not actually ask.
             #
             # This guard stays here rather than at the caller on purpose. Since the scope
             # now arrives from outside, this is the last place that can fail closed.
@@ -74,7 +74,7 @@ class RetrievalService:
                 query_text=question.text,
                 query_embedding=query_embedding,
                 language=question.language,
-                search_scope=search_scope,
+                search_scope=effective_scope,
                 limit_per_source=pool_size,
             )
         )

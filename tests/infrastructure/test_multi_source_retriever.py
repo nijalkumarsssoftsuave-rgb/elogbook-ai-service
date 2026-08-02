@@ -1,5 +1,8 @@
+from datetime import date
+
 from app.domain.models import Embedding, RetrievedChunk, SourceSearchRequest
 from app.domain.permission import SearchScope, Source
+from app.domain.retrieval import EffectiveSearchScope, RetrievalFilter
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.fixture_corpus import (
     INCIDENTS,
@@ -29,6 +32,7 @@ class RecordingKeywordRetriever:
     def __init__(self) -> None:
         self._inner = BM25KeywordRetriever()
         self.requested_source_ids: list[str | None] = []
+        self.received_scopes: list[EffectiveSearchScope | None] = []
 
     async def search(
         self,
@@ -36,19 +40,28 @@ class RecordingKeywordRetriever:
         top_k: int = 5,
         language: str | None = None,
         source_id: str | None = None,
+        scope: EffectiveSearchScope | None = None,
     ) -> list[RetrievedChunk]:
         self.requested_source_ids.append(source_id)
-        return await self._inner.search(query_text, top_k, language, source_id)
+        self.received_scopes.append(scope)
+        return await self._inner.search(query_text, top_k, language, source_id, scope)
 
 
 async def _request(
     sources: list[Source], query: str = QUERY, **filters: list[str]
 ) -> SourceSearchRequest:
+    """Builds a request whose scope is an *entitlement* narrowed by no request filters.
+
+    Keeping the grant on the SearchScope side means these tests still exercise the
+    permission half of the combination, which is what they were written for.
+    """
     return SourceSearchRequest(
         query_text=query,
         query_embedding=await EmbeddingStub().embed(query),
         language="en",
-        search_scope=SearchScope(sources=sources, **filters),
+        search_scope=EffectiveSearchScope.combine(
+            SearchScope(sources=sources, **filters), RetrievalFilter()
+        ),
         limit_per_source=20,
     )
 
@@ -178,7 +191,7 @@ async def test_the_merged_lists_respect_the_per_source_limit() -> None:
         query_text=QUERY,
         query_embedding=Embedding(vector=[0.1], model="test"),
         language="en",
-        search_scope=SearchScope(sources=ALL_SOURCES),
+        search_scope=EffectiveSearchScope.combine(SearchScope(sources=ALL_SOURCES)),
         limit_per_source=2,
     )
 
@@ -299,3 +312,160 @@ async def test_a_filtered_source_is_still_reported_as_searched() -> None:
 
     assert candidates.searched_source_ids == [SHIFT_LOGS]
     assert candidates.sparse == []
+
+
+# --- ES-338: the caller's filters reach both retrieval legs -------------------------------------
+
+
+async def _filtered(**filter_kwargs) -> tuple[set[str], set[str]]:
+    """Runs a filtered search and returns the (dense, sparse) chunk ids it produced."""
+    request = SourceSearchRequest(
+        query_text=QUERY,
+        query_embedding=await EmbeddingStub().embed(QUERY),
+        language="en",
+        search_scope=EffectiveSearchScope.combine(
+            SearchScope(sources=ALL_SOURCES), RetrievalFilter(**filter_kwargs)
+        ),
+        limit_per_source=20,
+    )
+    candidates = await _build().search(request)
+    return (
+        {chunk.chunk_id for chunk in candidates.dense},
+        {chunk.chunk_id for chunk in candidates.sparse},
+    )
+
+
+async def test_bm25_respects_an_area_filter() -> None:
+    _, sparse = await _filtered(area_ids=["north"])
+
+    assert sparse
+    assert sparse <= {"log-001", "log-003", "log-005", "log-006"}
+
+
+async def test_bm25_respects_a_department_filter() -> None:
+    _, sparse = await _filtered(department_ids=["maintenance"])
+
+    assert sparse <= {"log-003", "log-005"}
+
+
+async def test_bm25_respects_a_status_filter() -> None:
+    _, sparse = await _filtered(statuses=["open"])
+
+    assert sparse <= {"log-002", "log-006", "log-008"}
+
+
+async def test_bm25_respects_a_tag_filter_by_overlap() -> None:
+    _, sparse = await _filtered(tags=["alarm"])
+
+    assert sparse <= {"log-006"}
+
+
+async def test_bm25_respects_a_date_range() -> None:
+    _, sparse = await _filtered(date_from=date(2026, 8, 1), date_to=date(2026, 8, 31))
+
+    assert sparse <= {"log-007", "log-008"}
+
+
+async def test_the_dense_leg_respects_filters_too() -> None:
+    """The stub chunk declares no organisational attributes, so any filter on them excludes
+    it. That is fail-closed matching working, not a gap in the stub.
+    """
+    unfiltered_dense, _ = await _filtered()
+    filtered_dense, _ = await _filtered(area_ids=["north"])
+
+    assert unfiltered_dense == {"dense-stub-chunk-1"}
+    assert filtered_dense == set()
+
+
+async def test_both_legs_are_handed_the_same_scope() -> None:
+    """One scope object to both, so the two legs cannot disagree about what was asked for."""
+    keyword = RecordingKeywordRetriever()
+    request = SourceSearchRequest(
+        query_text=QUERY,
+        query_embedding=await EmbeddingStub().embed(QUERY),
+        language="en",
+        search_scope=EffectiveSearchScope.combine(
+            SearchScope(sources=ALL_SOURCES), RetrievalFilter(area_ids=["north"])
+        ),
+        limit_per_source=20,
+    )
+
+    await _build(keyword).search(request)
+
+    assert keyword.received_scopes
+    assert all(scope.area_ids == ["north"] for scope in keyword.received_scopes)
+
+
+async def test_an_unsatisfiable_scope_retrieves_nothing() -> None:
+    """The entitlement and the request cannot both hold, so there is nothing to search --
+    and this must not degrade into an unfiltered search.
+    """
+    request = SourceSearchRequest(
+        query_text=QUERY,
+        query_embedding=await EmbeddingStub().embed(QUERY),
+        language="en",
+        search_scope=EffectiveSearchScope.combine(
+            SearchScope(sources=ALL_SOURCES, area_ids=["north"]),
+            RetrievalFilter(area_ids=["south"]),
+        ),
+        limit_per_source=20,
+    )
+
+    candidates = await _build().search(request)
+
+    assert candidates.dense == []
+    assert candidates.sparse == []
+
+
+async def test_filtering_still_fills_the_per_source_limit() -> None:
+    """Why the filter is pushed into the retriever rather than applied afterwards: a
+    post-hoc filter over an already-truncated list returns whatever happens to survive it.
+    """
+    _, sparse = await _filtered(statuses=["closed"])
+
+    assert len(sparse) >= 3
+
+
+class ScopeIgnoringRetriever:
+    """A retriever that is handed a scope and pays no attention to it.
+
+    Stands in for the ways this really happens: a new backend whose driver silently drops an
+    unsupported filter clause, or an adapter written before the scope parameter existed.
+    """
+
+    def __init__(self) -> None:
+        self._inner = BM25KeywordRetriever()
+
+    async def search(
+        self,
+        query_text: str,
+        top_k: int = 5,
+        language: str | None = None,
+        source_id: str | None = None,
+        scope: EffectiveSearchScope | None = None,
+    ) -> list[RetrievedChunk]:
+        return await self._inner.search(query_text, top_k, language, source_id, None)
+
+
+async def test_a_retriever_that_ignores_the_scope_still_cannot_leak() -> None:
+    """The backstop earning its place. Filtering inside the retrievers is the performance
+    story; this is the safety one, and a filter that is only enforced in the component that
+    might skip it is not enforced at all.
+    """
+    request = SourceSearchRequest(
+        query_text=QUERY,
+        query_embedding=await EmbeddingStub().embed(QUERY),
+        language="en",
+        search_scope=EffectiveSearchScope.combine(
+            SearchScope(sources=ALL_SOURCES), RetrievalFilter(area_ids=["north"])
+        ),
+        limit_per_source=20,
+    )
+
+    candidates = await MultiSourceRetriever(
+        VectorStoreStub(), ScopeIgnoringRetriever()
+    ).search(request)
+
+    assert {chunk.chunk_id for chunk in candidates.sparse} <= {
+        "log-001", "log-003", "log-005", "log-006",
+    }
