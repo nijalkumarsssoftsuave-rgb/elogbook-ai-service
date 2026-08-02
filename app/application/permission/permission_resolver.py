@@ -1,16 +1,7 @@
 from typing import NamedTuple
 
 from app.domain.models import PermissionScope, SearchScope, Source
-from app.infrastructure.retrieval.fixture_corpus import INCIDENTS, SAFETY, SHIFT_LOGS
-
-# The sources retrieval can be pointed at. A fixture catalogue, standing in for a real
-# registry once the ingestion pipeline exists -- the same way fixture_corpus.py stands in
-# for the ingested index.
-SOURCE_CATALOGUE: dict[str, Source] = {
-    SHIFT_LOGS: Source(source_id=SHIFT_LOGS, display_name="Shift Logs"),
-    INCIDENTS: Source(source_id=INCIDENTS, display_name="Incident Reports"),
-    SAFETY: Source(source_id=SAFETY, display_name="Safety and Visitor Records"),
-}
+from app.domain.permission import RoleType, role_type
 
 
 class RoleGrant(NamedTuple):
@@ -19,24 +10,15 @@ class RoleGrant(NamedTuple):
     Every filter tuple is empty by default, and empty means *unrestricted* rather than
     *nothing* -- a role that says nothing about departments does not restrict by
     department.
+
+    Only a custom role should ever carry a filter here. A base role is unrestricted by
+    definition, and the resolver enforces that regardless of what a grant claims.
     """
 
     sources: tuple[str, ...]
     area_ids: tuple[str, ...] = ()
     department_ids: tuple[str, ...] = ()
     company_ids: tuple[str, ...] = ()
-
-
-# Which roles may read what. The shipped catalogue leaves every role unrestricted on area,
-# department and company: no document carries those attributes yet, so granting one would
-# mean granting access to nothing.
-ROLE_GRANTS: dict[str, RoleGrant] = {
-    "viewer": RoleGrant(sources=(SHIFT_LOGS, INCIDENTS, SAFETY)),
-    "supervisor": RoleGrant(sources=(SHIFT_LOGS, INCIDENTS, SAFETY)),
-    # Contractors see day-to-day operations but neither incident reports nor the safety
-    # and visitor records. This is the role that makes exclusion observable.
-    "contractor": RoleGrant(sources=(SHIFT_LOGS,)),
-}
 
 
 class PermissionResolver:
@@ -47,6 +29,10 @@ class PermissionResolver:
     operate on a settled answer rather than re-deciding per result -- which is the
     arrangement that stops a restricted document leaking through a code path that forgot to
     check.
+
+    It lives in the application layer because entitlement is policy, not I/O. The catalogue
+    and the role map are the parts that will one day come from a store, so they are injected
+    rather than reached for; the rules for combining them stay here.
 
     Roles are **additive**: a caller gets the union of what their roles grant, so holding an
     extra role can widen access but never narrow it. That rule has a subtlety in the
@@ -60,23 +46,30 @@ class PermissionResolver:
     """
 
     def __init__(
-        self,
-        catalogue: dict[str, Source] | None = None,
-        role_grants: dict[str, RoleGrant] | None = None,
+        self, catalogue: dict[str, Source], role_grants: dict[str, RoleGrant]
     ) -> None:
-        self._catalogue = dict(SOURCE_CATALOGUE if catalogue is None else catalogue)
-        self._role_grants = dict(ROLE_GRANTS if role_grants is None else role_grants)
+        self._catalogue = dict(catalogue)
+        self._role_grants = dict(role_grants)
 
     async def resolve(self, scope: PermissionScope) -> SearchScope:
-        grants = [
-            self._role_grants[role] for role in scope.roles if role in self._role_grants
+        granted = [
+            (role, self._role_grants[role])
+            for role in scope.roles
+            if role in self._role_grants
         ]
-        if not grants:
+        if not granted:
             # No recognised role: an empty search set, which retrieval treats as "nothing
             # to search" rather than "no restriction".
             return SearchScope()
 
-        permitted_sources = {source_id for grant in grants for source_id in grant.sources}
+        permitted_sources = {
+            source_id for _, grant in granted for source_id in grant.sources
+        }
+        grants = [grant for _, grant in granted]
+        # Only roles that actually carry a grant count. A base role the catalogue does not
+        # recognise grants nothing, and so must not be able to lift another role's filter.
+        unrestricted = any(role_type(role) is RoleType.BASE for role, _ in granted)
+
         return SearchScope(
             # Ordered by the catalogue, not by role iteration, so the resolved scope is
             # stable regardless of the order roles arrive in the token.
@@ -85,18 +78,26 @@ class PermissionResolver:
                 for source_id, source in self._catalogue.items()
                 if source_id in permitted_sources
             ],
-            area_ids=self._union_filter(grants, "area_ids"),
-            department_ids=self._union_filter(grants, "department_ids"),
-            company_ids=self._union_filter(grants, "company_ids"),
+            area_ids=self._filter(grants, "area_ids", unrestricted),
+            department_ids=self._filter(grants, "department_ids", unrestricted),
+            company_ids=self._filter(grants, "company_ids", unrestricted),
         )
 
     @staticmethod
-    def _union_filter(grants: list[RoleGrant], attribute: str) -> list[str]:
-        """Combines one filter across roles, honouring "empty means unrestricted".
+    def _filter(grants: list[RoleGrant], attribute: str, unrestricted: bool) -> list[str]:
+        """Combines one organisational filter across roles.
 
-        If any role is unrestricted on this attribute the union is unrestricted, so the
-        result is an empty list. Otherwise it is the union of every role's allowed values.
+        A caller holding any base operational role is unrestricted outright: a base role
+        describes what someone does, not which slice of the organisation they may look at,
+        so no filter derived from another role may narrow them. Enforcing it here rather
+        than by shipping empty grants means a filter accidentally added to a base role
+        cannot quietly start restricting people.
+
+        Otherwise the union honours "empty means unrestricted": if any custom role is
+        unrestricted on this attribute the union is too, and the result is an empty list.
         """
+        if unrestricted:
+            return []
         values: list[tuple[str, ...]] = [getattr(grant, attribute) for grant in grants]
         if any(not value for value in values):
             return []

@@ -2,6 +2,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.domain.permission import BaseRole
 from app.infrastructure.retrieval.fixture_corpus import INCIDENTS, SAFETY, SHIFT_LOGS
 from tests.conftest import signed_jwt
 
@@ -42,6 +43,20 @@ def test_a_viewer_reaches_documents_from_every_source(client: TestClient) -> Non
     cited = _cited(_ask_text(client, "viewer"))
 
     assert _INCIDENT_CHUNK in cited
+
+
+@pytest.mark.parametrize("role", list(BaseRole))
+def test_every_base_role_reaches_documents_from_every_source(
+    app: FastAPI, role: BaseRole
+) -> None:
+    """ES-332 end to end. Admin is the one that changes: it was not in the grant table
+    before, so an admin token resolved to no sources and got a refusal -- a base
+    operational role that could read less than a contractor.
+    """
+    cited = _cited(_ask_text(TestClient(app), role))
+
+    assert _INCIDENT_CHUNK in cited
+    assert cited & _SHIFT_LOG_CHUNKS
 
 
 def test_a_contractor_cannot_cite_a_source_they_may_not_read(client: TestClient) -> None:
@@ -117,7 +132,7 @@ def test_the_source_catalogue_ids_are_the_ones_the_corpus_uses() -> None:
     set of documents that does not exist, which looks exactly like "no results".
     """
     from app.infrastructure.retrieval.fixture_corpus import DEFAULT_FIXTURE_CORPUS
-    from app.infrastructure.retrieval.permission_resolver import SOURCE_CATALOGUE
+    from app.infrastructure.retrieval.permission_catalogue import SOURCE_CATALOGUE
 
     corpus_sources = {document.source_id for document in DEFAULT_FIXTURE_CORPUS}
 

@@ -57,7 +57,7 @@ class FakeEmbedding:
 
 class FakePermissionResolver:
     """Resolves to one source; the resolution rules themselves are covered in
-    tests/infrastructure/test_permission_resolver.py.
+    tests/application/test_permission_resolver.py.
     """
 
     async def resolve(self, scope: PermissionScope) -> SearchScope:

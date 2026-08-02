@@ -19,6 +19,7 @@ from app.application.citation.citation_resolver import CitationResolver
 from app.application.citation.citation_validator import CitationValidator
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
+from app.application.permission.permission_resolver import PermissionResolver
 from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
@@ -27,7 +28,7 @@ from app.infrastructure.language.script_language_detector import ScriptLanguageD
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.fixture_corpus import DEFAULT_FIXTURE_CORPUS, FixtureDocument
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
-from app.infrastructure.retrieval.permission_resolver import PermissionResolver
+from app.infrastructure.retrieval.permission_catalogue import ROLE_GRANTS, SOURCE_CATALOGUE
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.cache_stub import CacheStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
@@ -69,7 +70,7 @@ def build_surfaces(corpus: list[FixtureDocument] | None = None) -> EvaluationSur
     """
     documents = list(DEFAULT_FIXTURE_CORPUS if corpus is None else corpus)
     keyword_retriever = BM25KeywordRetriever(corpus=documents)
-    permission_resolver = PermissionResolver()
+    permission_resolver = PermissionResolver(SOURCE_CATALOGUE, ROLE_GRANTS)
     retrieval_service = RetrievalService(
         EmbeddingStub(),
         MultiSourceRetriever(VectorStoreStub(), keyword_retriever),

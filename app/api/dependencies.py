@@ -7,6 +7,7 @@ from app.application.citation.citation_resolver import CitationResolver
 from app.application.citation.citation_validator import CitationValidator
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
+from app.application.permission.permission_resolver import PermissionResolver
 from app.application.ports import (
     AuditPort,
     CachePort,
@@ -32,7 +33,7 @@ from app.infrastructure.language.script_language_detector import ScriptLanguageD
 from app.infrastructure.model_serving.speech.faster_whisper_adapter import FasterWhisperAdapter
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
-from app.infrastructure.retrieval.permission_resolver import PermissionResolver
+from app.infrastructure.retrieval.permission_catalogue import ROLE_GRANTS, SOURCE_CATALOGUE
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.cache_stub import CacheStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
@@ -132,7 +133,7 @@ def get_speech_to_text_port() -> SpeechToTextPort:
 
 @lru_cache
 def get_permission_resolver_port() -> PermissionResolverPort:
-    return PermissionResolver()
+    return PermissionResolver(SOURCE_CATALOGUE, ROLE_GRANTS)
 
 
 @lru_cache

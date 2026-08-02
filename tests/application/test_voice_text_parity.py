@@ -6,6 +6,7 @@ from app.application.citation.citation_validator import CitationValidator
 from app.application.dto import QueryRequestDTO, TranscribeRequestDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
+from app.application.permission.permission_resolver import PermissionResolver
 from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
@@ -16,7 +17,7 @@ from app.domain.models import GroundedAnswer, PermissionScope
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
-from app.infrastructure.retrieval.permission_resolver import PermissionResolver
+from app.infrastructure.retrieval.permission_catalogue import ROLE_GRANTS, SOURCE_CATALOGUE
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
 from app.infrastructure.stubs.guardrail_stub import GuardrailStub
@@ -62,7 +63,7 @@ def _build_qa_service(cache: RecordingCache) -> QAApplicationService:
         LanguageDetectionService(ScriptLanguageDetector(), SUPPORTED_LANGUAGES),
         GuardrailService(GuardrailStub()),
         RetrievalNode(
-            PermissionResolver(),
+            PermissionResolver(SOURCE_CATALOGUE, ROLE_GRANTS),
             RetrievalService(
                 EmbeddingStub(),
                 MultiSourceRetriever(VectorStoreStub(), BM25KeywordRetriever()),
