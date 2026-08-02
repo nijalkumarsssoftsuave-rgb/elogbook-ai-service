@@ -1,11 +1,6 @@
 from app.application.qa.nodes.retrieval import RetrievalNode
-from app.domain.models import (
-    PermissionScope,
-    Question,
-    RetrievedChunk,
-    SearchScope,
-    Source,
-)
+from app.domain.models import Question, RetrievedChunk
+from app.domain.permission import PermissionScope, SearchScope, Source
 
 CHUNK = RetrievedChunk(chunk_id="log-001", document_id="doc-log-001", text="t", score=1.0)
 SHIFT_LOGS = Source(source_id="shift-logs", display_name="Shift Logs")

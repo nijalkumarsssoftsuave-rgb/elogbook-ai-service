@@ -1,10 +1,5 @@
-from app.domain.models import (
-    Embedding,
-    RetrievedChunk,
-    SearchScope,
-    Source,
-    SourceSearchRequest,
-)
+from app.domain.models import Embedding, RetrievedChunk, SourceSearchRequest
+from app.domain.permission import SearchScope, Source
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.fixture_corpus import (
     INCIDENTS,

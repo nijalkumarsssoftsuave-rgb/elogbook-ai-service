@@ -2,7 +2,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.domain.permission import BaseRole
+from app.domain.permission import BaseRole, CustomRole
 from app.infrastructure.retrieval.fixture_corpus import INCIDENTS, SAFETY, SHIFT_LOGS
 from tests.conftest import signed_jwt
 
@@ -17,6 +17,11 @@ _AUDIO = {"file": ("question.wav", b"RIFF....WAVEfmt fake audio payload", "audio
 # log-006 (the night-shift alarm) lives in `incidents`, which a contractor cannot read.
 _INCIDENT_CHUNK = "log-006"
 _SHIFT_LOG_CHUNKS = {"log-001", "log-003", "log-005"}
+# The documents the fixture corpus places in the north area, across all three sources.
+_NORTH_CHUNKS = {
+    "log-001", "log-003", "log-005", "log-006",
+    "log-ar-001", "log-ar-003", "log-ar-005", "log-ar-006",
+}
 
 
 def _headers(*roles: str) -> dict[str, str]:
@@ -67,6 +72,38 @@ def test_a_contractor_cannot_cite_a_source_they_may_not_read(client: TestClient)
 
     assert _INCIDENT_CHUNK not in cited
     assert cited & _SHIFT_LOG_CHUNKS, "a contractor should still reach the shift logs"
+
+
+def test_an_area_manager_reaches_only_documents_from_their_area(client: TestClient) -> None:
+    """ES-333 end to end. A restriction that is not a source restriction: an area manager
+    may read every source, so the incident report is not excluded for being an incident --
+    it is reachable because it happened in the north.
+    """
+    cited = _cited(_ask_text(client, CustomRole.AREA_MANAGER))
+
+    assert cited, "an area manager should still reach their own area"
+    for chunk_id in cited:
+        assert chunk_id in _NORTH_CHUNKS, f"{chunk_id} is outside the north area"
+
+
+def test_a_base_role_held_alongside_a_restricted_one_lifts_the_restriction(
+    client: TestClient,
+) -> None:
+    """The agreed precedence rule, visible where it actually matters: the same token plus
+    `viewer` reaches a southern document the area manager alone cannot see.
+
+    Note what is *not* asserted -- that every document the restricted token cited is still
+    cited by the widened one. The entitlement never narrows, and that is pinned on the
+    resolved scope in tests/application/test_permission_resolver.py. Citations are a
+    different thing: they are the top-k survivors of a ranking, so widening the permitted
+    set adds competitors and can push a previously cited document below the cut. Asserting
+    it here would be asserting that ranking is stable, which it is not and need not be.
+    """
+    restricted = _cited(_ask_text(client, CustomRole.AREA_MANAGER))
+    widened = _cited(_ask_text(client, BaseRole.VIEWER, CustomRole.AREA_MANAGER))
+
+    assert restricted <= _NORTH_CHUNKS
+    assert widened - _NORTH_CHUNKS, "adding a base role should reach beyond the north"
 
 
 def test_no_citation_ever_comes_from_outside_the_permitted_sources(

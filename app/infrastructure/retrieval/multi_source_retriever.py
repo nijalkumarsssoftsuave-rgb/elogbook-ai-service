@@ -1,12 +1,8 @@
 import asyncio
 
 from app.application.ports import KeywordRetrieverPort, VectorStorePort
-from app.domain.models import (
-    RetrievalCandidates,
-    RetrievedChunk,
-    SearchScope,
-    SourceSearchRequest,
-)
+from app.domain.models import RetrievalCandidates, RetrievedChunk, SourceSearchRequest
+from app.domain.permission import SearchScope
 
 
 class MultiSourceRetriever:

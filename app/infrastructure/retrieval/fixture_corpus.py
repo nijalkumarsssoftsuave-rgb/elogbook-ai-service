@@ -20,6 +20,12 @@ class FixtureDocument(NamedTuple):
 # Sample logbook entries standing in for a real ingested corpus. Once a document
 # ingestion pipeline exists (Bronze -> Silver -> Iceberg Golden per CLAUDE.md), the
 # keyword retriever reads from that index instead and this fixture is retired.
+#
+# Every entry declares an area, department and company, because retrieval matches those
+# fail-closed: a document that does not declare an attribute cannot satisfy a filter on it,
+# so an untagged corpus would make every restricted role resolve to nothing at all. The
+# attributes are metadata only -- no document's *text* changes -- which is what keeps the
+# BM25 index, and therefore every measured ranking, exactly as it was.
 ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
     FixtureDocument(
         chunk_id="log-001",
@@ -28,7 +34,12 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
             "Morning shift equipment check completed on Line 2 conveyor belt. No anomalies "
             "detected. All safety guards in place and lubrication levels nominal."
         ),
-        metadata={"source_title": "Morning Shift Equipment Log"},
+        metadata={
+            "source_title": "Morning Shift Equipment Log",
+            "area_id": "north",
+            "department_id": "production",
+            "company_id": "acme-industrial",
+        },
         language="en",
         source_id=SHIFT_LOGS,
     ),
@@ -39,7 +50,12 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
             "Incident report: minor slip near the loading dock at 14:32. No injuries "
             "reported. Area cordoned off and wet floor signage placed pending cleanup."
         ),
-        metadata={"source_title": "Incident Report - Loading Dock"},
+        metadata={
+            "source_title": "Incident Report - Loading Dock",
+            "area_id": "south",
+            "department_id": "logistics",
+            "company_id": "acme-industrial",
+        },
         language="en",
         source_id=INCIDENTS,
     ),
@@ -50,7 +66,12 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
             "Shift handover notes from night crew to day crew: Boiler 3 pressure reading "
             "stable at 145 psi. No outstanding maintenance requests."
         ),
-        metadata={"source_title": "Shift Handover Notes"},
+        metadata={
+            "source_title": "Shift Handover Notes",
+            "area_id": "north",
+            "department_id": "maintenance",
+            "company_id": "acme-industrial",
+        },
         language="en",
         source_id=SHIFT_LOGS,
     ),
@@ -61,7 +82,12 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
             "Safety walk conducted across warehouse zone B. Fire extinguishers inspected "
             "and tagged current. Emergency exit routes clear of obstructions."
         ),
-        metadata={"source_title": "Safety Walk Record - Zone B"},
+        metadata={
+            "source_title": "Safety Walk Record - Zone B",
+            "area_id": "south",
+            "department_id": "facilities",
+            "company_id": "acme-industrial",
+        },
         language="en",
         source_id=SAFETY,
     ),
@@ -72,7 +98,12 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
             "Scheduled maintenance log: replaced worn drive belt on packaging machine 4. "
             "Machine tested and returned to service at 09:15."
         ),
-        metadata={"source_title": "Scheduled Maintenance Log"},
+        metadata={
+            "source_title": "Scheduled Maintenance Log",
+            "area_id": "north",
+            "department_id": "maintenance",
+            "company_id": "acme-industrial",
+        },
         language="en",
         source_id=SHIFT_LOGS,
     ),
@@ -84,7 +115,12 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
             "near the server room. Fire brigade notified; false alarm confirmed after "
             "inspection, caused by dust buildup."
         ),
-        metadata={"source_title": "Night Shift Alarm Report"},
+        metadata={
+            "source_title": "Night Shift Alarm Report",
+            "area_id": "north",
+            "department_id": "facilities",
+            "company_id": "acme-industrial",
+        },
         language="en",
         source_id=INCIDENTS,
     ),
@@ -96,7 +132,12 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
             "escorted by facilities staff, departed 11:30 after completing filter "
             "replacement."
         ),
-        metadata={"source_title": "Visitor and Contractor Log"},
+        metadata={
+            "source_title": "Visitor and Contractor Log",
+            "area_id": "south",
+            "department_id": "facilities",
+            "company_id": "acme-industrial",
+        },
         language="en",
         source_id=SAFETY,
     ),
@@ -108,7 +149,12 @@ ENGLISH_FIXTURE_CORPUS: list[FixtureDocument] = [
             "pedestrian in aisle 7. Recommend additional mirror installation and "
             "refresher training."
         ),
-        metadata={"source_title": "Near-Miss Report - Aisle 7"},
+        metadata={
+            "source_title": "Near-Miss Report - Aisle 7",
+            "area_id": "south",
+            "department_id": "logistics",
+            "company_id": "acme-industrial",
+        },
         language="en",
         source_id=INCIDENTS,
     ),
@@ -128,7 +174,12 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
             "اكتمل فحص المعدات في وردية الصباح على الحزام الناقل في الخط الثاني. لم يتم "
             "رصد أي أعطال. جميع حواجز السلامة في مكانها ومستويات التزييت طبيعية."
         ),
-        metadata={"source_title": "سجل معدات وردية الصباح"},
+        metadata={
+            "source_title": "سجل معدات وردية الصباح",
+            "area_id": "north",
+            "department_id": "production",
+            "company_id": "acme-industrial",
+        },
         language="ar",
         source_id=SHIFT_LOGS,
     ),
@@ -139,7 +190,12 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
             "تقرير حادث: انزلاق بسيط قرب رصيف التحميل في الساعة 14:32. لم تسجل أي "
             "إصابات. تم تطويق المنطقة ووضع لافتات تحذير من الأرضية المبللة بانتظار التنظيف."
         ),
-        metadata={"source_title": "تقرير حادث - رصيف التحميل"},
+        metadata={
+            "source_title": "تقرير حادث - رصيف التحميل",
+            "area_id": "south",
+            "department_id": "logistics",
+            "company_id": "acme-industrial",
+        },
         language="ar",
         source_id=INCIDENTS,
     ),
@@ -150,7 +206,12 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
             "ملاحظات تسليم الوردية من الطاقم الليلي إلى الطاقم النهاري: قراءة ضغط الغلاية "
             "رقم 3 مستقرة عند 145 psi. لا توجد طلبات صيانة معلقة."
         ),
-        metadata={"source_title": "ملاحظات تسليم الوردية"},
+        metadata={
+            "source_title": "ملاحظات تسليم الوردية",
+            "area_id": "north",
+            "department_id": "maintenance",
+            "company_id": "acme-industrial",
+        },
         language="ar",
         source_id=SHIFT_LOGS,
     ),
@@ -161,7 +222,12 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
             "جولة سلامة في منطقة المستودع ب. تم فحص طفايات الحريق ووسمها بتاريخ ساري. "
             "مسارات مخارج الطوارئ خالية من العوائق."
         ),
-        metadata={"source_title": "سجل جولة السلامة - المنطقة ب"},
+        metadata={
+            "source_title": "سجل جولة السلامة - المنطقة ب",
+            "area_id": "south",
+            "department_id": "facilities",
+            "company_id": "acme-industrial",
+        },
         language="ar",
         source_id=SAFETY,
     ),
@@ -172,7 +238,12 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
             "سجل صيانة مجدولة: تم استبدال حزام الإدارة المهترئ في ماكينة التغليف رقم 4. "
             "تم اختبار الماكينة وإعادتها إلى الخدمة في الساعة 09:15."
         ),
-        metadata={"source_title": "سجل الصيانة المجدولة"},
+        metadata={
+            "source_title": "سجل الصيانة المجدولة",
+            "area_id": "north",
+            "department_id": "maintenance",
+            "company_id": "acme-industrial",
+        },
         language="ar",
         source_id=SHIFT_LOGS,
     ),
@@ -184,7 +255,12 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
             "قرب غرفة الخوادم. تم إبلاغ فرقة الإطفاء، وتأكد أنه إنذار كاذب بعد المعاينة، "
             "وسببه تراكم الغبار."
         ),
-        metadata={"source_title": "تقرير إنذار الوردية الليلية"},
+        metadata={
+            "source_title": "تقرير إنذار الوردية الليلية",
+            "area_id": "north",
+            "department_id": "facilities",
+            "company_id": "acme-industrial",
+        },
         language="ar",
         source_id=INCIDENTS,
     ),
@@ -195,7 +271,12 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
             "قيد في سجل الزوار: وصل فريق المقاولين لفحص HVAC في الساعة 10:00، برفقة موظفي "
             "المرافق، وغادر في الساعة 11:30 بعد إتمام استبدال الفلاتر."
         ),
-        metadata={"source_title": "سجل الزوار والمقاولين"},
+        metadata={
+            "source_title": "سجل الزوار والمقاولين",
+            "area_id": "south",
+            "department_id": "facilities",
+            "company_id": "acme-industrial",
+        },
         language="ar",
         source_id=SAFETY,
     ),
@@ -206,7 +287,12 @@ ARABIC_FIXTURE_CORPUS: list[FixtureDocument] = [
             "تقرير وشك وقوع حادث: تفادى سائق الرافعة الشوكية بصعوبة الاصطدام بأحد المشاة "
             "في الممر رقم 7. يوصى بتركيب مرايا إضافية وإقامة تدريب تنشيطي."
         ),
-        metadata={"source_title": "تقرير وشك وقوع حادث - الممر 7"},
+        metadata={
+            "source_title": "تقرير وشك وقوع حادث - الممر 7",
+            "area_id": "south",
+            "department_id": "logistics",
+            "company_id": "acme-industrial",
+        },
         language="ar",
         source_id=INCIDENTS,
     ),

@@ -1,6 +1,5 @@
 from app.application.permission.permission_resolver import RoleGrant
-from app.domain.models import Source
-from app.domain.permission import BaseRole, CustomRole
+from app.domain.permission import BaseRole, CustomRole, Source
 from app.infrastructure.retrieval.fixture_corpus import INCIDENTS, SAFETY, SHIFT_LOGS
 
 # The data PermissionResolver resolves against. It lives here rather than beside the
@@ -19,19 +18,28 @@ SOURCE_CATALOGUE: dict[str, Source] = {
 
 _EVERY_SOURCE = (SHIFT_LOGS, INCIDENTS, SAFETY)
 
-# Which roles may read what. No grant here carries an organisational filter: no document
-# carries an area, department or company attribute yet, so shipping a filter would grant
-# access to nothing. The base roles would be unrestricted regardless -- the resolver
-# guarantees that from the role type rather than from this table happening to be empty.
+# The organisational values the corpus actually declares. Named here rather than spelled
+# inline in a grant, because a filter naming a value no document carries silently entitles
+# its holder to nothing -- fail-closed matching cannot tell a typo from a real exclusion.
+NORTH = "north"
+SOUTH = "south"
+MAINTENANCE = "maintenance"
+
+# Which roles may read what.
+#
+# A base role's grant never carries an organisational filter -- the resolver would override
+# it anyway, so writing one here would only mislead. Filters belong to custom roles, which
+# is what they are for.
 ROLE_GRANTS: dict[str, RoleGrant] = {
     BaseRole.VIEWER: RoleGrant(sources=_EVERY_SOURCE),
     BaseRole.SUPERVISOR: RoleGrant(sources=_EVERY_SOURCE),
     BaseRole.ADMIN: RoleGrant(sources=_EVERY_SOURCE),
     # Contractors see day-to-day operations but neither incident reports nor the safety
-    # and visitor records. This is the role that makes exclusion observable.
+    # and visitor records. Restricted by *source*, and unrestricted within it -- the role
+    # that makes source exclusion observable.
     CustomRole.CONTRACTOR: RoleGrant(sources=(SHIFT_LOGS,)),
-    # CustomRole.AREA_MANAGER is deliberately absent. It is a custom role, so it is the
-    # kind of role that *would* carry an area filter -- but no document records an area
-    # yet, and retrieval fails closed on a missing attribute, so shipping that grant would
-    # entitle its holders to nothing at all.
+    # An area manager may read every source, but only for the area they run. Restricted by
+    # *attribute* rather than by source, which is the other half of the same idea and the
+    # role that makes organisational filtering observable.
+    CustomRole.AREA_MANAGER: RoleGrant(sources=_EVERY_SOURCE, area_ids=(NORTH,)),
 }

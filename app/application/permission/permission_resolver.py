@@ -1,7 +1,6 @@
 from typing import NamedTuple
 
-from app.domain.models import PermissionScope, SearchScope, Source
-from app.domain.permission import RoleType, role_type
+from app.domain.permission import PermissionScope, RoleType, SearchScope, Source, role_type
 
 
 class RoleGrant(NamedTuple):
@@ -34,12 +33,23 @@ class PermissionResolver:
     and the role map are the parts that will one day come from a store, so they are injected
     rather than reached for; the rules for combining them stay here.
 
-    Roles are **additive**: a caller gets the union of what their roles grant, so holding an
-    extra role can widen access but never narrow it. That rule has a subtlety in the
-    filters, and getting it backwards would quietly shrink what a multi-role user can see:
-    a role with no area restriction is *unrestricted*, so combining it with an
-    area-restricted role must leave the caller unrestricted, not intersected down to the
-    restricted role's areas.
+    **The precedence rule, in full.** Roles combine in three steps, and this class is the
+    only place any of them is decided:
+
+    1. *Sources are unioned.* A caller may search every source any of their roles grants.
+    2. *A base role overrides every custom restriction.* Holding one base operational role
+       resolves to an unrestricted scope no matter what else the caller holds.
+    3. *Otherwise custom restrictions union*, and "empty means unrestricted" applies -- one
+       custom role that says nothing about areas leaves the combination unrestricted on
+       areas.
+
+    Every step points the same way: **holding an extra role can widen access but never
+    narrow it.** That is the property worth protecting, because the alternatives break it in
+    ways that are quiet rather than loud. Letting a custom restriction override a base role
+    would mean granting someone an extra role *reduces* what they can see -- an admin who is
+    also an area manager would lose sight of every other area. Intersecting restrictions is
+    worse still: two custom roles covering different areas would cancel each other out and
+    leave the caller with nothing.
 
     An unrecognised role contributes nothing rather than raising. A token minted by a newer
     version of the upstream backend should degrade to "sees less", never to a 500.
@@ -66,9 +76,7 @@ class PermissionResolver:
             source_id for _, grant in granted for source_id in grant.sources
         }
         grants = [grant for _, grant in granted]
-        # Only roles that actually carry a grant count. A base role the catalogue does not
-        # recognise grants nothing, and so must not be able to lift another role's filter.
-        unrestricted = any(role_type(role) is RoleType.BASE for role, _ in granted)
+        unrestricted = self._base_role_overrides_custom_restrictions(granted)
 
         return SearchScope(
             # Ordered by the catalogue, not by role iteration, so the resolved scope is
@@ -84,16 +92,30 @@ class PermissionResolver:
         )
 
     @staticmethod
+    def _base_role_overrides_custom_restrictions(
+        granted: list[tuple[str, RoleGrant]]
+    ) -> bool:
+        """Step 2 of the precedence rule: does any base role lift every custom restriction?
+
+        A base role describes what someone does; a custom role describes which slice of the
+        organisation they are confined to. Someone who is both a supervisor and an area
+        manager is a supervisor, so no filter derived from the custom role may narrow them.
+
+        Only roles that actually carry a grant count. A base role the catalogue does not
+        recognise entitles its holder to nothing, and so must not be able to widen what
+        another role allows -- otherwise naming an unknown base role in a token would be a
+        way to strip filters.
+        """
+        return any(role_type(role) is RoleType.BASE for role, _ in granted)
+
+    @staticmethod
     def _filter(grants: list[RoleGrant], attribute: str, unrestricted: bool) -> list[str]:
-        """Combines one organisational filter across roles.
+        """Combines one organisational filter across roles -- step 2 then step 3.
 
-        A caller holding any base operational role is unrestricted outright: a base role
-        describes what someone does, not which slice of the organisation they may look at,
-        so no filter derived from another role may narrow them. Enforcing it here rather
-        than by shipping empty grants means a filter accidentally added to a base role
-        cannot quietly start restricting people.
+        Enforcing the base-role override here rather than by shipping empty grants means a
+        filter accidentally added to a base role cannot quietly start restricting people.
 
-        Otherwise the union honours "empty means unrestricted": if any custom role is
+        The union that follows honours "empty means unrestricted": if any custom role is
         unrestricted on this attribute the union is too, and the result is an empty list.
         """
         if unrestricted:

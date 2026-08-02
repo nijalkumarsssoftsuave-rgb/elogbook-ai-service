@@ -1,12 +1,8 @@
 from pydantic import BaseModel, Field
 
 from app.domain.citation import ResolvedCitation
-from app.domain.models import (
-    GroundedAnswer,
-    PermissionScope,
-    QueryProvenance,
-    Transcript,
-)
+from app.domain.models import GroundedAnswer, QueryProvenance, Transcript
+from app.domain.permission import PermissionScope
 
 
 class QueryRequestDTO(BaseModel):

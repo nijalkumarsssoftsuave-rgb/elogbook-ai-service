@@ -19,14 +19,12 @@ from app.domain.models import (
     GeneratedAnswer,
     GenerationRequest,
     GroundedAnswer,
-    PermissionScope,
     Question,
     RetrievalCandidates,
     RetrievedChunk,
-    SearchScope,
-    Source,
     SourceSearchRequest,
 )
+from app.domain.permission import PermissionScope, SearchScope, Source
 
 # The services under test are concrete classes, so the fakes sit one level down at the
 # port boundary: every collaborator below is a real service wrapping fake ports.

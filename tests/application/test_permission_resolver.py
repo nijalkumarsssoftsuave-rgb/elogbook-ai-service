@@ -1,10 +1,18 @@
 import pytest
 
 from app.application.permission.permission_resolver import PermissionResolver, RoleGrant
-from app.domain.models import PermissionScope, SearchScope
-from app.domain.permission import BaseRole, CustomRole
-from app.infrastructure.retrieval.fixture_corpus import INCIDENTS, SAFETY, SHIFT_LOGS
-from app.infrastructure.retrieval.permission_catalogue import ROLE_GRANTS, SOURCE_CATALOGUE
+from app.domain.permission import BaseRole, CustomRole, PermissionScope, SearchScope
+from app.infrastructure.retrieval.fixture_corpus import (
+    DEFAULT_FIXTURE_CORPUS,
+    INCIDENTS,
+    SAFETY,
+    SHIFT_LOGS,
+)
+from app.infrastructure.retrieval.permission_catalogue import (
+    NORTH,
+    ROLE_GRANTS,
+    SOURCE_CATALOGUE,
+)
 
 
 def _resolver(role_grants: dict[str, RoleGrant] | None = None) -> PermissionResolver:
@@ -133,16 +141,68 @@ async def test_a_base_role_that_grants_nothing_cannot_lift_a_restriction() -> No
     assert scope.source_ids == [SHIFT_LOGS]
 
 
-async def test_the_shipped_catalogue_applies_no_organisational_filters() -> None:
-    """No document carries an area or department yet, so granting one would grant access to
-    nothing. This pins that today's callers are unrestricted on all three.
+# --- the shipped custom roles ---------------------------------------------------------------
+
+
+async def test_an_area_manager_resolves_to_a_scope_restricted_by_area() -> None:
+    """The shipped example of a restriction that is not a source restriction: every source
+    is readable, but only within one area.
     """
-    for role in ROLE_GRANTS:
+    scope = await _resolver().resolve(PermissionScope.from_roles([CustomRole.AREA_MANAGER]))
+
+    assert scope.source_ids == [SHIFT_LOGS, INCIDENTS, SAFETY]
+    assert scope.area_ids == [NORTH]
+    assert scope.department_ids == []
+    assert scope.company_ids == []
+
+
+async def test_a_contractor_is_restricted_by_source_and_not_by_attribute() -> None:
+    """The other shape a custom role can take, kept distinct on purpose: a contractor may
+    read one source, but sees all of it.
+    """
+    scope = await _resolver().resolve(PermissionScope.from_roles([CustomRole.CONTRACTOR]))
+
+    assert scope.source_ids == [SHIFT_LOGS]
+    assert scope.is_unrestricted
+
+
+async def test_no_base_role_in_the_shipped_catalogue_carries_a_filter() -> None:
+    """A base role's grant is overridden anyway, so a filter written into one could only
+    mislead a reader into thinking it does something.
+    """
+    for role in BaseRole:
         scope = await _resolver().resolve(PermissionScope.from_roles([role]))
 
-        assert scope.area_ids == []
-        assert scope.department_ids == []
-        assert scope.company_ids == []
+        assert scope.is_unrestricted
+        assert scope.source_ids == [SHIFT_LOGS, INCIDENTS, SAFETY]
+
+
+async def test_a_viewer_who_is_also_an_area_manager_stays_unrestricted() -> None:
+    """The agreed precedence rule, on the roles actually shipped rather than injected ones.
+    """
+    scope = await _resolver().resolve(
+        PermissionScope.from_roles([BaseRole.VIEWER, CustomRole.AREA_MANAGER])
+    )
+
+    assert scope.is_unrestricted
+    assert scope.source_ids == [SHIFT_LOGS, INCIDENTS, SAFETY]
+
+
+async def test_every_filter_value_in_the_catalogue_exists_in_the_corpus() -> None:
+    """Guards the failure fail-closed matching cannot distinguish from a real exclusion: a
+    filter naming a value no document declares entitles its holder to nothing, and looks
+    exactly like "no results".
+    """
+    declared = {
+        (document.metadata.get("area_id"), document.metadata.get("department_id"))
+        for document in DEFAULT_FIXTURE_CORPUS
+    }
+    areas = {area for area, _ in declared}
+    departments = {department for _, department in declared}
+
+    for grant in ROLE_GRANTS.values():
+        assert set(grant.area_ids) <= areas
+        assert set(grant.department_ids) <= departments
 
 
 # --- organisational filters, against an injected role map ------------------------------------

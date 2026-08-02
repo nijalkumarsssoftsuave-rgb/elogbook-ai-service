@@ -7,7 +7,7 @@ from app.application.dto import QueryRequestDTO
 from app.application.qa_service import QAApplicationService
 from app.core.correlation import get_correlation_id
 from app.core.security import RbacContext, get_rbac_context
-from app.domain.models import PermissionScope
+from app.domain.permission import PermissionScope
 
 router = APIRouter(prefix="/api/v1/qa", tags=["qa"])
 

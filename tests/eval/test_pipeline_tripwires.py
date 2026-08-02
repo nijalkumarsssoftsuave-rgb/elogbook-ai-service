@@ -6,7 +6,8 @@ build here is good news that needs a follow-up action.
 """
 
 from app.application.dto import QueryRequestDTO
-from app.domain.models import PermissionScope, Question
+from app.domain.models import Question
+from app.domain.permission import PermissionScope
 from tests.eval.surfaces import EvaluationSurfaces
 
 # ES-327 made retrieval fail closed: a request with no permission scope resolves to no
