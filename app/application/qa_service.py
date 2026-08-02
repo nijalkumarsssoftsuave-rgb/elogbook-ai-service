@@ -1,9 +1,10 @@
 from app.application.audit_service import AuditService
+from app.application.citation_resolution_service import CitationResolutionService
 from app.application.citation_validation_service import CitationValidationService
 from app.application.dto import QueryRequestDTO, QueryResultDTO
-from app.application.generation_service import GenerationService
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
+from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.domain.models import GroundedAnswer, Question, RetrievedChunk
 
@@ -12,8 +13,8 @@ class QAApplicationService:
     """Orchestrates a QA query end-to-end, one step per business capability:
 
     language detection -> cache lookup -> input guardrail -> retrieval ->
-    evidence guardrail -> generate & validate citations (one retry, else refuse) ->
-    output guardrail -> audit & cache.
+    evidence guardrail -> generate, validate & resolve citations (one retry, else refuse)
+    -> output guardrail -> audit & cache.
 
     Each collaborator owns its own details; this service only sequences them.
     """
@@ -26,15 +27,17 @@ class QAApplicationService:
         language_detection: LanguageDetectionService,
         guardrail_service: GuardrailService,
         retrieval_node: RetrievalNode,
-        generation_service: GenerationService,
+        generation_node: GenerationNode,
         citation_validation_service: CitationValidationService,
+        citation_resolution_service: CitationResolutionService,
         audit_service: AuditService,
     ) -> None:
         self._language_detection = language_detection
         self._guardrail_service = guardrail_service
         self._retrieval_node = retrieval_node
-        self._generation_service = generation_service
+        self._generation_node = generation_node
         self._citation_validation_service = citation_validation_service
+        self._citation_resolution_service = citation_resolution_service
         self._audit_service = audit_service
 
     async def execute(self, request: QueryRequestDTO) -> QueryResultDTO:
@@ -74,14 +77,17 @@ class QAApplicationService:
     async def _generate_and_validate(
         self, question: Question, chunks: list[RetrievedChunk]
     ) -> GroundedAnswer:
-        """Generates an answer and keeps it only if its citations check out.
+        """Generates an answer, keeps it only if its citations check out, and resolves them.
 
-        The loop lives here rather than inside either service because it is the only
-        place holding both: having GenerationService call CitationValidationService (or
-        vice versa) would couple two collaborators that are otherwise siblings.
+        The loop lives here rather than inside any one collaborator because it is the only
+        place holding all three: having the generation node call CitationValidationService
+        (or vice versa) would couple collaborators that are otherwise siblings.
+
+        Resolution runs only on an answer that already validated, so a rejected attempt
+        never pays for it.
         """
         for _ in range(self._MAX_GENERATION_ATTEMPTS):
-            answer = await self._generation_service.generate(question, chunks)
-            if self._citation_validation_service.validate(answer, chunks).is_valid:
-                return answer
+            generated = await self._generation_node.generate(question, chunks)
+            if self._citation_validation_service.validate(generated, chunks).is_valid:
+                return self._citation_resolution_service.resolve(generated, chunks)
         return GroundedAnswer.refusal()

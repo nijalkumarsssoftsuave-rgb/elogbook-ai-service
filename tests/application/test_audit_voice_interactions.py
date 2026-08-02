@@ -1,9 +1,10 @@
 from app.application.audit_service import AuditService
+from app.application.citation_resolution_service import CitationResolutionService
 from app.application.citation_validation_service import CitationValidationService
 from app.application.dto import QueryRequestDTO, TranscribeRequestDTO
-from app.application.generation_service import GenerationService
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
+from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
@@ -74,8 +75,9 @@ def _build(audit: RecordingAudit) -> tuple[QAApplicationService, STTApplicationS
                 RerankerStub(),
             ),
         ),
-        GenerationService(ModelClientStub()),
+        GenerationNode(ModelClientStub()),
         CitationValidationService(),
+        CitationResolutionService(),
         AuditService(CacheStub(), audit),
     )
     stt_service = STTApplicationService(

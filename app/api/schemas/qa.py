@@ -9,7 +9,12 @@ class QAQueryRequest(BaseModel):
 
 
 class CitationResponse(BaseModel):
+    # citation_id, order and source_id are additions, not replacements: every field a
+    # client already reads is still here, so nothing downstream breaks.
+    citation_id: str
+    order: int
     chunk_id: str
+    source_id: str
     document_id: str
     source_title: str
     page_number: int | None = None
@@ -30,7 +35,10 @@ class QAQueryResponseData(BaseModel):
             answer_text=result.answer_text,
             citations=[
                 CitationResponse(
+                    citation_id=citation.citation_id,
+                    order=citation.order,
                     chunk_id=citation.chunk_id,
+                    source_id=citation.source_id,
                     document_id=citation.document_id,
                     source_title=citation.source_title,
                     page_number=citation.page_number,
