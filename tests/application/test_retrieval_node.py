@@ -1,6 +1,9 @@
+from datetime import date
+
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.domain.models import Question, RetrievedChunk
 from app.domain.permission import PermissionScope, SearchScope, Source
+from app.domain.query import QueryFilters
 
 CHUNK = RetrievedChunk(chunk_id="log-001", document_id="doc-log-001", text="t", score=1.0)
 SHIFT_LOGS = Source(source_id="shift-logs", display_name="Shift Logs")
@@ -20,11 +23,17 @@ class FakePermissionResolver:
 class FakeRetrievalService:
     def __init__(self) -> None:
         self.received: list[tuple[Question, SearchScope, int]] = []
+        self.filters: list[QueryFilters | None] = []
 
     async def retrieve(
-        self, question: Question, search_scope: SearchScope, top_k: int = 5
+        self,
+        question: Question,
+        search_scope: SearchScope,
+        top_k: int = 5,
+        filters: QueryFilters | None = None,
     ) -> list[RetrievedChunk]:
         self.received.append((question, search_scope, top_k))
+        self.filters.append(filters)
         return [CHUNK]
 
 
@@ -102,3 +111,65 @@ async def test_the_node_returns_the_services_chunks_unchanged() -> None:
     chunks = await node.run(_question(), PermissionScope.from_roles(["viewer"]))
 
     assert chunks == [CHUNK]
+
+
+# --- ES-337: the caller's filters reach retrieval -----------------------------------------------
+
+_FILTERS = QueryFilters(
+    area_ids=["north"], date_from=date(2026, 7, 1), date_to=date(2026, 7, 31)
+)
+
+
+async def test_filters_reach_the_retrieval_service_unchanged() -> None:
+    node, _, service = _build()
+
+    await node.run(_question(), PermissionScope.from_roles(["viewer"]), filters=_FILTERS)
+
+    assert service.filters == [_FILTERS]
+    assert service.filters[0].area_ids == ["north"]
+    assert service.filters[0].date_from == date(2026, 7, 1)
+    assert service.filters[0].date_to == date(2026, 7, 31)
+
+
+async def test_a_request_with_no_filters_still_reaches_retrieval() -> None:
+    """The node supplies an empty QueryFilters rather than None, so nothing downstream has
+    to decide what a missing filter set means.
+    """
+    node, _, service = _build()
+
+    await node.run(_question(), PermissionScope.from_roles(["viewer"]))
+
+    assert service.filters[0] == QueryFilters()
+    assert service.filters[0].is_empty
+
+
+async def test_filters_are_not_merged_into_the_resolved_search_scope() -> None:
+    """The distinction ES-337 exists to protect. A SearchScope is an entitlement resolved
+    from the caller's roles; filters are a preference stated in the request. Copying one
+    into the other -- the fields share names -- is how a request would come to widen its own
+    access instead of narrowing it.
+    """
+    node, _, service = _build()
+
+    await node.run(
+        _question(),
+        PermissionScope.from_roles(["viewer"]),
+        filters=QueryFilters(area_ids=["south"], department_ids=["logistics"]),
+    )
+
+    _, resolved_scope, _ = service.received[0]
+    assert resolved_scope == RESOLVED
+    assert resolved_scope.area_ids == []
+    assert resolved_scope.department_ids == ["maintenance"]
+
+
+async def test_the_node_does_not_inspect_or_rewrite_the_filters() -> None:
+    """It forwards. Anything that reads a filter here would be a second place deciding what
+    filters mean, and the two would drift.
+    """
+    filters = QueryFilters(area_ids=["north"], company_ids=["acme-industrial"])
+    node, _, service = _build()
+
+    await node.run(_question(), PermissionScope.from_roles(["viewer"]), filters=filters)
+
+    assert service.filters[0] is filters

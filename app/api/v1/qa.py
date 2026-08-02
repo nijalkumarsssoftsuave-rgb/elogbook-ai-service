@@ -28,6 +28,9 @@ async def query(
         # The caller's entitlements, derived from the verified token. Retrieval resolves
         # this into the sources it is allowed to search.
         permission_scope=PermissionScope.from_roles(rbac.roles),
+        # Forwarded exactly as received. The endpoint validates the shape of a filter
+        # and nothing else -- what it means for retrieval is decided further down.
+        filters=payload.filters,
     )
     result = await qa_service.execute(request_dto)
     return ApiResponse.ok(data=QAQueryResponseData.from_dto(result), correlation_id=correlation_id)
