@@ -119,6 +119,35 @@ async def test_the_model_is_loaded_once_across_concurrent_transcriptions() -> No
     assert factory.calls == 1
 
 
+async def test_a_second_transcription_reuses_the_loaded_model_without_the_lock() -> None:
+    """The production hot path: once loaded, every later request must take the cheap
+    branch rather than queueing behind the load lock.
+    """
+    factory = CountingFactory()
+    adapter = _build(factory)
+
+    await adapter.transcribe(_audio())
+    await adapter.transcribe(_audio())
+
+    assert factory.calls == 1
+
+
+async def test_a_load_error_that_already_explains_itself_is_not_wrapped_twice() -> None:
+    """The missing-extra case arrives as a TranscriptionFailedError with a message naming
+    the fix. Re-wrapping it would bury that inside a second, vaguer one.
+    """
+    original = TranscriptionFailedError(
+        TranscriptionFailureReason.MODEL_UNAVAILABLE,
+        "faster-whisper is not installed. Run `uv sync --extra stt`.",
+    )
+    adapter = _build(CountingFactory(error=original))
+
+    with pytest.raises(TranscriptionFailedError) as excinfo:
+        await adapter.transcribe(_audio())
+
+    assert excinfo.value is original
+
+
 async def test_warmup_loads_the_model_up_front() -> None:
     factory = CountingFactory()
     adapter = _build(factory)
