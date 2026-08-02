@@ -1,7 +1,12 @@
 import asyncio
 
 from app.application.ports import KeywordRetrieverPort, VectorStorePort
-from app.domain.models import RetrievalCandidates, RetrievedChunk, SourceSearchRequest
+from app.domain.models import (
+    RetrievalCandidates,
+    RetrievedChunk,
+    SearchScope,
+    SourceSearchRequest,
+)
 
 
 class MultiSourceRetriever:
@@ -35,7 +40,8 @@ class MultiSourceRetriever:
         self._keyword_retriever = keyword_retriever
 
     async def search(self, request: SourceSearchRequest) -> RetrievalCandidates:
-        if not request.sources:
+        scope = request.search_scope
+        if scope.is_empty:
             # Nothing permitted, so nothing to search. Returning empty candidates rather
             # than querying an unrestricted index is the whole point of the ticket.
             return RetrievalCandidates()
@@ -43,7 +49,7 @@ class MultiSourceRetriever:
         # Every source is searched concurrently, which is what makes this worth doing at
         # all once the sources sit behind separate network-backed backends.
         per_source = await asyncio.gather(
-            *(self._search_one(request, source.source_id) for source in request.sources)
+            *(self._search_one(request, source.source_id) for source in scope.sources)
         )
 
         dense: list[RetrievedChunk] = []
@@ -55,10 +61,45 @@ class MultiSourceRetriever:
         return RetrievalCandidates(
             # Which sources were *queried*, not which returned a hit: a permitted source
             # that matched nothing is still part of the answer to "where did we look?".
-            searched_source_ids=[source.source_id for source in request.sources],
-            dense=self._merge(dense, request.limit_per_source),
-            sparse=self._merge(sparse, request.limit_per_source),
+            searched_source_ids=scope.source_ids,
+            dense=self._merge(self._within_scope(dense, scope), request.limit_per_source),
+            sparse=self._merge(self._within_scope(sparse, scope), request.limit_per_source),
         )
+
+    @classmethod
+    def _within_scope(
+        cls, chunks: list[RetrievedChunk], scope: SearchScope
+    ) -> list[RetrievedChunk]:
+        """Drops candidates the caller's organisational filters exclude.
+
+        Applied after the search rather than pushed into it because area, department and
+        company are document attributes, not indexes -- unlike `source_id`, which selects
+        which index to query at all. A real backend would express these as a filter clause
+        on the same query; the seam is the same either way.
+        """
+        return [chunk for chunk in chunks if cls._matches_all_filters(chunk, scope)]
+
+    @classmethod
+    def _matches_all_filters(cls, chunk: RetrievedChunk, scope: SearchScope) -> bool:
+        return (
+            cls._matches(chunk, "area_id", scope.area_ids)
+            and cls._matches(chunk, "department_id", scope.department_ids)
+            and cls._matches(chunk, "company_id", scope.company_ids)
+        )
+
+    @staticmethod
+    def _matches(chunk: RetrievedChunk, key: str, allowed: list[str]) -> bool:
+        """Fail-closed matching.
+
+        An empty allow-list is *no constraint*, so everything passes. A non-empty one is
+        strict: a document that does not declare the attribute at all cannot satisfy it,
+        and is excluded. The alternative -- treating a missing attribute as permitted --
+        would let any document without a department slip past every department filter,
+        which is the failure this exists to prevent.
+        """
+        if not allowed:
+            return True
+        return chunk.metadata.get(key) in allowed
 
     async def _search_one(
         self, request: SourceSearchRequest, source_id: str

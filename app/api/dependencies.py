@@ -16,8 +16,8 @@ from app.application.ports import (
     LanguageDetectorPort,
     ModelClientPort,
     MultiSourceRetrieverPort,
+    PermissionResolverPort,
     RerankerPort,
-    SourceResolverPort,
     SpeechToTextPort,
     VectorStorePort,
 )
@@ -31,7 +31,7 @@ from app.infrastructure.language.script_language_detector import ScriptLanguageD
 from app.infrastructure.model_serving.speech.faster_whisper_adapter import FasterWhisperAdapter
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
-from app.infrastructure.retrieval.source_resolver import RoleBasedSourceResolver
+from app.infrastructure.retrieval.permission_resolver import PermissionResolver
 from app.infrastructure.stubs.audit_stub import AuditStub
 from app.infrastructure.stubs.cache_stub import CacheStub
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
@@ -130,8 +130,8 @@ def get_speech_to_text_port() -> SpeechToTextPort:
 
 
 @lru_cache
-def get_source_resolver_port() -> SourceResolverPort:
-    return RoleBasedSourceResolver()
+def get_permission_resolver_port() -> PermissionResolverPort:
+    return PermissionResolver()
 
 
 @lru_cache
@@ -156,17 +156,17 @@ def get_language_detection_service(
 
 def get_retrieval_service(
     embedding: EmbeddingPort = Depends(get_embedding_port),
-    source_resolver: SourceResolverPort = Depends(get_source_resolver_port),
     multi_source_retriever: MultiSourceRetrieverPort = Depends(get_multi_source_retriever_port),
     reranker: RerankerPort = Depends(get_reranker_port),
 ) -> RetrievalService:
-    return RetrievalService(embedding, source_resolver, multi_source_retriever, reranker)
+    return RetrievalService(embedding, multi_source_retriever, reranker)
 
 
 def get_retrieval_node(
+    permission_resolver: PermissionResolverPort = Depends(get_permission_resolver_port),
     retrieval_service: RetrievalService = Depends(get_retrieval_service),
 ) -> RetrievalNode:
-    return RetrievalNode(retrieval_service)
+    return RetrievalNode(permission_resolver, retrieval_service)
 
 
 def get_guardrail_service(

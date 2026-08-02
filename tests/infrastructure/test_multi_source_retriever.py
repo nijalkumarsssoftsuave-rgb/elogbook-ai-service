@@ -1,6 +1,17 @@
-from app.domain.models import Embedding, RetrievedChunk, Source, SourceSearchRequest
+from app.domain.models import (
+    Embedding,
+    RetrievedChunk,
+    SearchScope,
+    Source,
+    SourceSearchRequest,
+)
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
-from app.infrastructure.retrieval.fixture_corpus import INCIDENTS, SAFETY, SHIFT_LOGS
+from app.infrastructure.retrieval.fixture_corpus import (
+    INCIDENTS,
+    SAFETY,
+    SHIFT_LOGS,
+    FixtureDocument,
+)
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
 from app.infrastructure.stubs.embedding_stub import EmbeddingStub
 from app.infrastructure.stubs.vector_store_stub import VectorStoreStub
@@ -35,12 +46,14 @@ class RecordingKeywordRetriever:
         return await self._inner.search(query_text, top_k, language, source_id)
 
 
-async def _request(sources: list[Source], query: str = QUERY) -> SourceSearchRequest:
+async def _request(
+    sources: list[Source], query: str = QUERY, **filters: list[str]
+) -> SourceSearchRequest:
     return SourceSearchRequest(
         query_text=query,
         query_embedding=await EmbeddingStub().embed(query),
         language="en",
-        sources=sources,
+        search_scope=SearchScope(sources=sources, **filters),
         limit_per_source=20,
     )
 
@@ -170,10 +183,124 @@ async def test_the_merged_lists_respect_the_per_source_limit() -> None:
         query_text=QUERY,
         query_embedding=Embedding(vector=[0.1], model="test"),
         language="en",
-        sources=ALL_SOURCES,
+        search_scope=SearchScope(sources=ALL_SOURCES),
         limit_per_source=2,
     )
 
     candidates = await _build().search(request)
 
     assert len(candidates.sparse) <= 2
+
+
+# --- organisational filters -------------------------------------------------------------------
+
+# A synthetic corpus is used for these rather than the shipped one, because no real document
+# declares an area or department yet. BM25 merges `document.metadata` into every chunk it
+# returns, so putting the attributes there exercises the real matching path with no
+# production change at all.
+_FILTERED_CORPUS = [
+    FixtureDocument(
+        "north-1",
+        "doc-north-1",
+        "conveyor belt inspection completed on the north line",
+        {"area_id": "north", "department_id": "maintenance", "company_id": "acme"},
+        "en",
+        SHIFT_LOGS,
+    ),
+    FixtureDocument(
+        "south-1",
+        "doc-south-1",
+        "conveyor belt inspection completed on the south line",
+        {"area_id": "south", "department_id": "operations", "company_id": "acme"},
+        "en",
+        SHIFT_LOGS,
+    ),
+    FixtureDocument(
+        "unlabelled-1",
+        "doc-unlabelled-1",
+        "conveyor belt inspection completed, location not recorded",
+        {},
+        "en",
+        SHIFT_LOGS,
+    ),
+]
+_FILTER_QUERY = "conveyor belt inspection"
+
+
+def _filtered_retriever() -> MultiSourceRetriever:
+    return MultiSourceRetriever(
+        VectorStoreStub(), BM25KeywordRetriever(corpus=_FILTERED_CORPUS)
+    )
+
+
+async def _filtered_ids(**filters: list[str]) -> list[str]:
+    candidates = await _filtered_retriever().search(
+        await _request(SHIFT_LOGS_ONLY, query=_FILTER_QUERY, **filters)
+    )
+    return [chunk.chunk_id for chunk in candidates.sparse]
+
+
+async def test_no_filters_returns_everything_in_the_permitted_sources() -> None:
+    """Empty means unrestricted, not "nothing allowed" -- this is today's behaviour and it
+    must not change just because the fields now exist.
+    """
+    assert sorted(await _filtered_ids()) == ["north-1", "south-1", "unlabelled-1"]
+
+
+async def test_an_area_filter_keeps_only_documents_declaring_that_area() -> None:
+    assert await _filtered_ids(area_ids=["north"]) == ["north-1"]
+
+
+async def test_a_department_filter_is_applied_independently_of_area() -> None:
+    assert await _filtered_ids(department_ids=["operations"]) == ["south-1"]
+
+
+async def test_a_company_filter_is_applied_too() -> None:
+    assert sorted(await _filtered_ids(company_ids=["acme"])) == ["north-1", "south-1"]
+
+
+async def test_several_allowed_values_widen_the_filter() -> None:
+    assert sorted(await _filtered_ids(area_ids=["north", "south"])) == ["north-1", "south-1"]
+
+
+async def test_filters_combine_as_and_not_or() -> None:
+    """north-1 is in area north; south-1 is in operations. Neither satisfies both, so a
+    caller restricted to each gets nothing rather than the union.
+    """
+    assert await _filtered_ids(area_ids=["north"], department_ids=["operations"]) == []
+
+
+async def test_a_document_missing_the_attribute_cannot_satisfy_a_filter() -> None:
+    """The fail-closed half. Treating a missing attribute as permitted would let every
+    unlabelled document slip past every filter, which is precisely the leak this prevents.
+    """
+    assert "unlabelled-1" not in await _filtered_ids(area_ids=["north"])
+    assert "unlabelled-1" not in await _filtered_ids(department_ids=["maintenance"])
+    assert "unlabelled-1" not in await _filtered_ids(company_ids=["acme"])
+
+
+async def test_a_filter_matching_nothing_returns_nothing_rather_than_everything() -> None:
+    assert await _filtered_ids(area_ids=["antarctica"]) == []
+
+
+async def test_filters_apply_to_dense_candidates_as_well() -> None:
+    """The dense stub declares no area, so an area-restricted caller must not receive it --
+    otherwise a filter would be enforced on one retrieval method and not the other.
+    """
+    candidates = await _filtered_retriever().search(
+        await _request(SHIFT_LOGS_ONLY, query=_FILTER_QUERY, area_ids=["north"])
+    )
+
+    assert candidates.dense == []
+
+
+async def test_a_filtered_source_is_still_reported_as_searched() -> None:
+    """Filtering removes candidates, not sources. "We looked there and found nothing you
+    may see" is different from "we never looked".
+    """
+    candidates = await _filtered_retriever().search(
+        await _request(SHIFT_LOGS_ONLY, query=_FILTER_QUERY, area_ids=["antarctica"])
+    )
+
+    assert candidates.searched_source_ids == [SHIFT_LOGS]
+    assert candidates.sparse == []

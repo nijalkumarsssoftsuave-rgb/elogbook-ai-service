@@ -19,6 +19,7 @@ from app.domain.models import (
     Question,
     RetrievalCandidates,
     RetrievedChunk,
+    SearchScope,
     Source,
     SourceSearchRequest,
 )
@@ -50,13 +51,13 @@ class FakeEmbedding:
         return Embedding(vector=[0.1], model="fake")
 
 
-class FakeSourceResolver:
+class FakePermissionResolver:
     """Resolves to one source; the resolution rules themselves are covered in
-    tests/infrastructure/test_source_resolver.py.
+    tests/infrastructure/test_permission_resolver.py.
     """
 
-    async def resolve(self, scope: PermissionScope) -> list[Source]:
-        return [Source(source_id="shift-logs", display_name="Shift Logs")]
+    async def resolve(self, scope: PermissionScope) -> SearchScope:
+        return SearchScope(sources=[Source(source_id="shift-logs", display_name="Shift Logs")])
 
 
 class FakeMultiSourceRetriever:
@@ -66,7 +67,7 @@ class FakeMultiSourceRetriever:
     async def search(self, request: SourceSearchRequest) -> RetrievalCandidates:
         self.calls.append("retrieve")
         return RetrievalCandidates(
-            searched_source_ids=[source.source_id for source in request.sources],
+            searched_source_ids=request.search_scope.source_ids,
             dense=[],
             sparse=[EVIDENCE],
         )
@@ -153,12 +154,10 @@ def _build_service(
         ),
         GuardrailService(FakeGuardrail(calls)),
         RetrievalNode(
+            FakePermissionResolver(),
             RetrievalService(
-                FakeEmbedding(),
-                FakeSourceResolver(),
-                FakeMultiSourceRetriever(calls),
-                FakeReranker(),
-            )
+                FakeEmbedding(), FakeMultiSourceRetriever(calls), FakeReranker()
+            ),
         ),
         GenerationService(model_client=FakeModelClient(calls, completions)),
         CitationValidationService(),
