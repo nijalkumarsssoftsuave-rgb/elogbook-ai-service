@@ -2,6 +2,7 @@ from typing import Protocol
 
 from app.domain.models import (
     AudioRequest,
+    AuditRecord,
     DetectedLanguage,
     Embedding,
     GroundedAnswer,
@@ -85,6 +86,10 @@ class CachePort(Protocol):
 
 
 class AuditPort(Protocol):
-    async def record_query(
-        self, question: Question, answer: GroundedAnswer, correlation_id: str
-    ) -> None: ...
+    """Writes the audit trail.
+
+    Takes one assembled record rather than loose arguments, so the next audit field to be
+    added changes the record and not this signature.
+    """
+
+    async def record(self, record: AuditRecord) -> None: ...

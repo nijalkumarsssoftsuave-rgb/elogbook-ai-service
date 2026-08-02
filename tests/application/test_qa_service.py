@@ -10,6 +10,7 @@ from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
 from app.domain.exceptions import UnsupportedLanguageError
 from app.domain.models import (
+    AuditRecord,
     DetectedLanguage,
     Embedding,
     GroundedAnswer,
@@ -116,13 +117,11 @@ class FakeCache:
 class FakeAudit:
     def __init__(self, calls: list[str]) -> None:
         self.calls = calls
-        self.recorded: list[tuple[Question, GroundedAnswer, str]] = []
+        self.recorded: list[AuditRecord] = []
 
-    async def record_query(
-        self, question: Question, answer: GroundedAnswer, correlation_id: str
-    ) -> None:
+    async def record(self, record: AuditRecord) -> None:
         self.calls.append("record_query")
-        self.recorded.append((question, answer, correlation_id))
+        self.recorded.append(record)
 
 
 # A completion citing evidence that was actually retrieved, and one citing nothing.
@@ -235,7 +234,7 @@ async def test_execute_refuses_after_two_failed_attempts_and_does_not_cache_the_
     assert result.citations == []
     assert "record_query" in calls  # refusals are still audited
     assert "cache_set" not in calls  # but never cached
-    assert audit.recorded[0][1].refused is True
+    assert audit.recorded[0].answer.refused is True
 
 
 async def test_execute_rejects_an_unsupported_language_before_anything_else(

@@ -1,5 +1,16 @@
 from app.application.audit_service import AuditService
-from app.domain.models import GroundedAnswer, Question
+from app.domain.models import (
+    AuditRecord,
+    GroundedAnswer,
+    QueryOrigin,
+    QueryProvenance,
+    Question,
+)
+
+TEXT_PROVENANCE = QueryProvenance()
+VOICE_PROVENANCE = QueryProvenance(
+    origin=QueryOrigin.VOICE, audio_duration_seconds=11.0, transcription_duration_seconds=1.4
+)
 
 
 class FakeCache:
@@ -18,12 +29,10 @@ class FakeCache:
 
 class FakeAudit:
     def __init__(self) -> None:
-        self.recorded: list[tuple[Question, GroundedAnswer, str]] = []
+        self.recorded: list[AuditRecord] = []
 
-    async def record_query(
-        self, question: Question, answer: GroundedAnswer, correlation_id: str
-    ) -> None:
-        self.recorded.append((question, answer, correlation_id))
+    async def record(self, record: AuditRecord) -> None:
+        self.recorded.append(record)
 
 
 def _question(text: str = "what happened on the last shift?") -> Question:
@@ -46,10 +55,10 @@ async def test_finalize_audits_and_caches_a_genuine_answer() -> None:
     service = AuditService(cache, audit)
     answer = _answer()
 
-    await service.finalize(_question(), answer, "cid-1")
+    await service.finalize(_question(), answer, "cid-1", TEXT_PROVENANCE)
 
     assert len(audit.recorded) == 1
-    assert audit.recorded[0][2] == "cid-1"
+    assert audit.recorded[0].correlation_id == "cid-1"
     assert [stored_answer for _, stored_answer in cache.stored] == [answer]
 
 
@@ -57,7 +66,7 @@ async def test_finalize_audits_a_refusal_but_never_caches_it() -> None:
     cache, audit = FakeCache(), FakeAudit()
     service = AuditService(cache, audit)
 
-    await service.finalize(_question(), _answer(refused=True), "cid-1")
+    await service.finalize(_question(), _answer(refused=True), "cid-1", TEXT_PROVENANCE)
 
     assert len(audit.recorded) == 1
     assert cache.stored == []
@@ -67,7 +76,7 @@ async def test_record_cache_hit_audits_without_writing_to_the_cache() -> None:
     cache, audit = FakeCache(), FakeAudit()
     service = AuditService(cache, audit)
 
-    await service.record_cache_hit(_question(), _answer(), "cid-1")
+    await service.record_cache_hit(_question(), _answer(), "cid-1", TEXT_PROVENANCE)
 
     assert len(audit.recorded) == 1
     assert cache.stored == []
@@ -78,7 +87,7 @@ async def test_the_same_question_reads_and_writes_the_same_cache_key() -> None:
     service = AuditService(cache, audit)
 
     await service.get_cached(_question())
-    await service.finalize(_question(), _answer(), "cid-1")
+    await service.finalize(_question(), _answer(), "cid-1", TEXT_PROVENANCE)
 
     assert cache.requested_keys[0] == cache.stored[0][0]
 
@@ -91,3 +100,58 @@ async def test_different_questions_use_different_cache_keys() -> None:
     await service.get_cached(_question("second question"))
 
     assert cache.requested_keys[0] != cache.requested_keys[1]
+
+
+async def test_the_record_carries_the_provenance_it_was_given() -> None:
+    cache, audit = FakeCache(), FakeAudit()
+    service = AuditService(cache, audit)
+
+    await service.finalize(_question(), _answer(), "cid-1", VOICE_PROVENANCE)
+
+    record = audit.recorded[0]
+    assert record.provenance.origin is QueryOrigin.VOICE
+    assert record.provenance.audio_duration_seconds == 11.0
+    assert record.provenance.transcription_duration_seconds == 1.4
+
+
+async def test_a_cache_hit_is_audited_with_its_provenance_too() -> None:
+    """A spoken question answered from cache is still a spoken question. Losing the origin
+    on the cheap path would make voice usage look lower than it is.
+    """
+    cache, audit = FakeCache(), FakeAudit()
+    service = AuditService(cache, audit)
+
+    await service.record_cache_hit(_question(), _answer(), "cid-1", VOICE_PROVENANCE)
+
+    assert audit.recorded[0].provenance.origin is QueryOrigin.VOICE
+
+
+async def test_the_record_language_tracks_the_question_it_describes() -> None:
+    """Computed rather than stored, so the audit row's language column cannot drift away
+    from the question it belongs to.
+    """
+    cache, audit = FakeCache(), FakeAudit()
+    service = AuditService(cache, audit)
+    arabic_question = Question(text="a question", user_id="u1", language="ar")
+
+    await service.finalize(arabic_question, _answer(), "cid-1", TEXT_PROVENANCE)
+
+    record = audit.recorded[0]
+    assert record.language == "ar"
+    # And it survives serialization, which is what a real SQL adapter will write.
+    assert record.model_dump()["language"] == "ar"
+
+
+async def test_provenance_does_not_reach_the_cache_key() -> None:
+    """The quiet failure this guards against: if provenance ever entered the key, a spoken
+    question would stop sharing cache entries with the identical typed one, and ES-325's
+    voice/text guarantee would rot without any test failing.
+    """
+    cache, audit = FakeCache(), FakeAudit()
+    service = AuditService(cache, audit)
+
+    await service.finalize(_question(), _answer(), "cid-1", TEXT_PROVENANCE)
+    await service.finalize(_question(), _answer(), "cid-2", VOICE_PROVENANCE)
+
+    typed_key, voice_key = (key for key, _ in cache.stored)
+    assert typed_key == voice_key

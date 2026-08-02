@@ -1,7 +1,8 @@
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any, ClassVar
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
 
 
 class DetectedLanguage(BaseModel):
@@ -70,6 +71,48 @@ class GroundedAnswer(BaseModel):
 class CitationValidationResult(BaseModel):
     is_valid: bool
     reason: str | None = None
+
+
+class QueryOrigin(StrEnum):
+    TEXT = "text"
+    VOICE = "voice"
+
+
+class QueryProvenance(BaseModel):
+    """How a question reached the service.
+
+    Audit metadata only. Nothing in the QA pipeline reads it and nothing may start to --
+    a spoken question and a typed one must behave identically, which is the guarantee
+    ES-325 established and the voice/text parity tests enforce.
+
+    The two durations are kept separate because they answer different questions:
+    `audio_duration_seconds` is how long the recording is, a property of the input;
+    `transcription_duration_seconds` is how long we took to process it, a measure of our
+    own performance. Collapsing them into one number would make the audit useless for
+    either. Both are None for a typed query, and also for the stub speech backend, which
+    cannot know a duration without decoding the audio.
+    """
+
+    origin: QueryOrigin = QueryOrigin.TEXT
+    audio_duration_seconds: float | None = None
+    transcription_duration_seconds: float | None = None
+
+
+class AuditRecord(BaseModel):
+    """One row of the audit trail: what was asked, what came back, and how it arrived."""
+
+    correlation_id: str
+    question: Question
+    answer: GroundedAnswer
+    provenance: QueryProvenance = Field(default_factory=QueryProvenance)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def language(self) -> str:
+        # Denormalized onto the record because an audit row wants a language column of its
+        # own, but computed rather than stored so it can never disagree with the question
+        # it describes.
+        return self.question.language
 
 
 class LanguageHint(BaseModel):

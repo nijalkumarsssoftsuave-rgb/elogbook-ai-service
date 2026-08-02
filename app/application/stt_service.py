@@ -1,7 +1,16 @@
+import time
+
 from app.application.dto import QueryRequestDTO, TranscribeRequestDTO, TranscribeResultDTO
 from app.application.qa_service import QAApplicationService
 from app.application.transcription_service import TranscriptionService
-from app.domain.models import AudioMetadata, AudioRequest, LanguageHint, Transcript
+from app.domain.models import (
+    AudioMetadata,
+    AudioRequest,
+    LanguageHint,
+    QueryOrigin,
+    QueryProvenance,
+    Transcript,
+)
 
 
 class STTApplicationService:
@@ -34,7 +43,13 @@ class STTApplicationService:
             language_hint=LanguageHint.from_optional(request.language_hint),
         )
 
+        # Timed across the whole call, so on the first request after startup this includes
+        # loading the speech model. That is the right number for an audit trail -- it is
+        # what the caller actually waited for -- but it does make the first row of a fresh
+        # process an outlier, which is worth knowing before reading the data.
+        started = time.monotonic()
         transcript = await self._transcription_service.transcribe(audio)
+        transcription_seconds = time.monotonic() - started
 
         # Normalized once, here, before the transcript is either reported or asked.
         #
@@ -46,20 +61,27 @@ class STTApplicationService:
         # keeps the transcript we return and the question we answered the same string.
         transcript = transcript.model_copy(update={"text": transcript.text.strip()})
 
-        answer = await self._qa_service.execute(self._to_query_request(transcript, request))
+        query_request = self._to_query_request(transcript, request, transcription_seconds)
+        answer = await self._qa_service.execute(query_request)
         return TranscribeResultDTO(transcript=transcript, answer=answer)
 
     @staticmethod
     def _to_query_request(
-        transcript: Transcript, request: TranscribeRequestDTO
+        transcript: Transcript,
+        request: TranscribeRequestDTO,
+        transcription_seconds: float,
     ) -> QueryRequestDTO:
         """The seam where a transcript stops being audio and becomes an ordinary question.
 
-        Past this line nothing about speech travels any further: the standard QA pipeline
+        Past this line nothing about speech *drives* anything: the standard QA pipeline
         owns the language gate, guardrails, retrieval, generation and citation validation,
-        and it cannot tell how the question arrived. Note that the caller's language hint
-        is deliberately *not* forwarded -- the pipeline detects language from the
-        transcript itself, exactly as it does for typed input.
+        and it does not branch on how the question arrived. The one thing that does travel
+        onward is provenance, which the pipeline carries untouched to the audit trail --
+        an audit record that could not tell a spoken query from a typed one would be a
+        poor audit record.
+
+        Note that the caller's language hint is deliberately *not* forwarded: the pipeline
+        detects language from the transcript itself, exactly as it does for typed input.
         """
         return QueryRequestDTO(
             query=transcript.text,
@@ -67,4 +89,9 @@ class STTApplicationService:
             roles=request.roles,
             correlation_id=request.correlation_id,
             top_k=request.top_k,
+            provenance=QueryProvenance(
+                origin=QueryOrigin.VOICE,
+                audio_duration_seconds=transcript.duration_seconds,
+                transcription_duration_seconds=transcription_seconds,
+            ),
         )

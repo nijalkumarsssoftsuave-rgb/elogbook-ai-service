@@ -49,7 +49,9 @@ class QAApplicationService:
 
         cached = await self._audit_service.get_cached(question)
         if cached is not None:
-            await self._audit_service.record_cache_hit(question, cached, request.correlation_id)
+            await self._audit_service.record_cache_hit(
+                question, cached, request.correlation_id, request.provenance
+            )
             return QueryResultDTO.from_domain(cached, cache_hit=True)
 
         await self._guardrail_service.check_question(question)
@@ -60,7 +62,11 @@ class QAApplicationService:
         answer = await self._generate_and_validate(question, chunks)
         answer = await self._guardrail_service.check_answer(answer)
 
-        await self._audit_service.finalize(question, answer, request.correlation_id)
+        # Provenance is handed to the audit trail and nowhere else -- this service does not
+        # branch on how the question arrived, and must not start to.
+        await self._audit_service.finalize(
+            question, answer, request.correlation_id, request.provenance
+        )
         return QueryResultDTO.from_domain(answer, cache_hit=False)
 
     async def _generate_and_validate(
