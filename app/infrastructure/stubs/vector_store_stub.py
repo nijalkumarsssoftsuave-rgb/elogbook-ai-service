@@ -1,4 +1,5 @@
 from app.domain.models import Embedding, RetrievedChunk
+from app.domain.retrieval import EffectiveSearchScope
 from app.infrastructure.retrieval.fixture_corpus import SHIFT_LOGS
 
 
@@ -17,7 +18,11 @@ class VectorStoreStub:
     _SOURCE_ID = SHIFT_LOGS
 
     async def search(
-        self, embedding: Embedding, top_k: int = 5, source_id: str | None = None
+        self,
+        embedding: Embedding,
+        top_k: int = 5,
+        source_id: str | None = None,
+        scope: EffectiveSearchScope | None = None,
     ) -> list[RetrievedChunk]:
         if source_id is not None and source_id != self._SOURCE_ID:
             return []
@@ -34,4 +39,9 @@ class VectorStoreStub:
                 },
             )
         ]
+        # The stub chunk declares no organisational attributes, so any filter on them
+        # excludes it -- which is fail-closed matching working as intended, not a gap.
+        # A real vector store would push this into the query as a metadata clause.
+        if scope is not None:
+            chunks = [chunk for chunk in chunks if scope.permits(chunk.metadata)]
         return chunks[:top_k]

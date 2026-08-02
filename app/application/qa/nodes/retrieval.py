@@ -2,7 +2,7 @@ from app.application.ports import PermissionResolverPort
 from app.application.retrieval_service import RetrievalService
 from app.domain.models import Question, RetrievedChunk
 from app.domain.permission import PermissionScope
-from app.domain.query import QueryFilters
+from app.domain.retrieval import RetrievalFilter
 
 
 class RetrievalNode:
@@ -33,12 +33,12 @@ class RetrievalNode:
         question: Question,
         permission_scope: PermissionScope,
         top_k: int = 5,
-        filters: QueryFilters | None = None,
+        filters: RetrievalFilter | None = None,
     ) -> list[RetrievedChunk]:
         search_scope = await self._permission_resolver.resolve(permission_scope)
         # The caller's filters travel beside the resolved scope, never merged into it.
         # A scope is an entitlement and a filter is a preference; combining them by
         # assignment is how a request would come to widen its own access.
         return await self._retrieval_service.retrieve(
-            question, search_scope, top_k, filters or QueryFilters()
+            question, search_scope, top_k, filters or RetrievalFilter()
         )

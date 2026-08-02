@@ -2,7 +2,7 @@ import asyncio
 
 from app.application.ports import KeywordRetrieverPort, VectorStorePort
 from app.domain.models import RetrievalCandidates, RetrievedChunk, SourceSearchRequest
-from app.domain.permission import SearchScope
+from app.domain.retrieval import EffectiveSearchScope
 
 
 class MultiSourceRetriever:
@@ -62,58 +62,45 @@ class MultiSourceRetriever:
             sparse=self._merge(self._within_scope(sparse, scope), request.limit_per_source),
         )
 
-    @classmethod
-    def _within_scope(
-        cls, chunks: list[RetrievedChunk], scope: SearchScope
-    ) -> list[RetrievedChunk]:
-        """Drops candidates the caller's organisational filters exclude.
-
-        Applied after the search rather than pushed into it because area, department and
-        company are document attributes, not indexes -- unlike `source_id`, which selects
-        which index to query at all. A real backend would express these as a filter clause
-        on the same query; the seam is the same either way.
-        """
-        return [chunk for chunk in chunks if cls._matches_all_filters(chunk, scope)]
-
-    @classmethod
-    def _matches_all_filters(cls, chunk: RetrievedChunk, scope: SearchScope) -> bool:
-        return (
-            cls._matches(chunk, "area_id", scope.area_ids)
-            and cls._matches(chunk, "department_id", scope.department_ids)
-            and cls._matches(chunk, "company_id", scope.company_ids)
-        )
-
     @staticmethod
-    def _matches(chunk: RetrievedChunk, key: str, allowed: list[str]) -> bool:
-        """Fail-closed matching.
+    def _within_scope(
+        chunks: list[RetrievedChunk], scope: EffectiveSearchScope
+    ) -> list[RetrievedChunk]:
+        """Drops any candidate the scope does not permit.
 
-        An empty allow-list is *no constraint*, so everything passes. A non-empty one is
-        strict: a document that does not declare the attribute at all cannot satisfy it,
-        and is excluded. The alternative -- treating a missing attribute as permitted --
-        would let any document without a department slip past every department filter,
-        which is the failure this exists to prevent.
+        Since ES-338 the retrievers filter as they walk their own ranked lists, so in normal
+        operation this removes nothing. It stays as a backstop, and deliberately: an adapter
+        that ignores the scope it was handed -- a new backend, a stub, a driver that quietly
+        drops an unsupported clause -- would otherwise leak restricted documents into an
+        answer. Being handed the same EffectiveSearchScope means it cannot disagree with the
+        retrievers about what the filter means, only about whether it was applied.
         """
-        if not allowed:
-            return True
-        return chunk.metadata.get(key) in allowed
+        return [chunk for chunk in chunks if scope.permits(chunk.metadata)]
 
     async def _search_one(
         self, request: SourceSearchRequest, source_id: str
     ) -> tuple[list[RetrievedChunk], list[RetrievedChunk]]:
-        # Dense and keyword search are independent, so they overlap here as well.
+        # Dense and keyword search are independent, so they overlap here as well. Both are
+        # handed the scope so they can exclude while walking their own ranked list: a
+        # filtered search then still fills top_k, instead of returning whatever survives
+        # a post-hoc filter applied to an already-truncated list.
         #
         # Only the keyword leg is language-restricted, matching RetrievalService's original
         # reasoning: a shared-token match across languages is noise for BM25, but a genuine
         # semantic hit for a multilingual embedder like BGE-M3.
         dense, sparse = await asyncio.gather(
             self._vector_store.search(
-                request.query_embedding, top_k=request.limit_per_source, source_id=source_id
+                request.query_embedding,
+                top_k=request.limit_per_source,
+                source_id=source_id,
+                scope=request.search_scope,
             ),
             self._keyword_retriever.search(
                 request.query_text,
                 top_k=request.limit_per_source,
                 language=request.language,
                 source_id=source_id,
+                scope=request.search_scope,
             ),
         )
         return list(dense), list(sparse)

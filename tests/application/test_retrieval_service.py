@@ -94,8 +94,12 @@ async def test_retrieve_embeds_then_searches_then_reranks() -> None:
 
 
 async def test_the_search_scope_is_handed_to_the_retriever_unchanged() -> None:
-    """The service does not narrow, widen or reinterpret the scope it is given -- that
-    decision was already made by the permission resolver.
+    """The entitlement reaches the retriever intact.
+
+    Since ES-338 it arrives combined with the caller's filters rather than raw, so the
+    assertion is on the sources and the permitted values rather than on object identity --
+    but the point is unchanged: this service does not narrow, widen or reinterpret what the
+    permission resolver decided.
     """
     calls: list[str] = []
     retriever = FakeMultiSourceRetriever(calls)
@@ -104,7 +108,12 @@ async def test_the_search_scope_is_handed_to_the_retriever_unchanged() -> None:
     await _build(calls, retriever=retriever).retrieve(_question(), scope)
 
     assert retriever.received is not None
-    assert retriever.received.search_scope == scope
+    handed = retriever.received.search_scope
+    assert handed.sources == scope.sources
+    assert handed.area_ids == scope.area_ids
+    assert handed.department_ids == scope.department_ids
+    assert handed.company_ids == scope.company_ids
+    assert handed.is_satisfiable is True
 
 
 async def test_an_empty_scope_retrieves_nothing_without_searching() -> None:

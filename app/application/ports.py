@@ -14,6 +14,7 @@ from app.domain.models import (
     Transcript,
 )
 from app.domain.permission import PermissionScope, SearchScope
+from app.domain.retrieval import EffectiveSearchScope
 
 
 class LanguageDetectorPort(Protocol):
@@ -41,7 +42,11 @@ class VectorStorePort(Protocol):
     """
 
     async def search(
-        self, embedding: Embedding, top_k: int = 5, source_id: str | None = None
+        self,
+        embedding: Embedding,
+        top_k: int = 5,
+        source_id: str | None = None,
+        scope: EffectiveSearchScope | None = None,
     ) -> list[RetrievedChunk]: ...
 
 
@@ -62,6 +67,7 @@ class KeywordRetrieverPort(Protocol):
         top_k: int = 5,
         language: str | None = None,
         source_id: str | None = None,
+        scope: EffectiveSearchScope | None = None,
     ) -> list[RetrievedChunk]: ...
 
 

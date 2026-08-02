@@ -144,21 +144,32 @@ def test_a_query_with_valid_filters_is_accepted(
     assert response.json()["data"]["answer_text"]
 
 
-def test_filters_do_not_yet_change_the_answer(
+def test_filters_change_which_documents_are_cited(
     app, auth_headers: dict[str, str]
 ) -> None:
-    """ES-337 accepts and forwards filters; deciding what they mean to retrieval is the next
-    ticket. Pinning that here means the behaviour change, when it lands, is visible as this
-    test being updated rather than as a silent difference.
+    """The tripwire ES-337 left behind, now firing as intended: filters used to be accepted
+    and ignored, and this asserted that. ES-338 applies them, so the same question with a
+    filter must reach a different, narrower set of documents.
     """
     unfiltered = TestClient(app).post(
-        "/api/v1/qa/query", json={"query": "Show pump failures"}, headers=auth_headers
+        "/api/v1/qa/query",
+        json={"query": "What caused the fire alarm during the night shift?"},
+        headers=auth_headers,
     )
     filtered = TestClient(app).post(
-        "/api/v1/qa/query", json=_FILTERED_BODY, headers=auth_headers
+        "/api/v1/qa/query",
+        json={
+            "query": "What caused the fire alarm during the night shift?",
+            "filters": {"area_ids": ["south"]},
+        },
+        headers=auth_headers,
     )
 
-    assert filtered.json()["data"] == unfiltered.json()["data"]
+    unfiltered_ids = {c["chunk_id"] for c in unfiltered.json()["data"]["citations"]}
+    filtered_ids = {c["chunk_id"] for c in filtered.json()["data"]["citations"]}
+
+    assert filtered_ids != unfiltered_ids
+    assert filtered_ids < unfiltered_ids, "a filter narrows; it never reaches new documents"
 
 
 @pytest.mark.parametrize(
@@ -201,3 +212,78 @@ def test_an_invalid_filter_is_rejected_before_the_pipeline_runs(
 
     assert response.status_code == 422
     assert "data" not in response.json() or response.json()["data"] is None
+
+
+def test_a_filter_that_matches_nothing_returns_a_grounded_refusal(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """No evidence survives the filter, so the pipeline has nothing to answer from and gives
+    the ordinary refusal -- not an error, and certainly not an unfiltered answer.
+    """
+    response = client.post(
+        "/api/v1/qa/query",
+        json={
+            "query": "What caused the fire alarm during the night shift?",
+            "filters": {"area_ids": ["atlantis"]},
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["refused"] is True
+    assert data["citations"] == []
+    assert data["confidence"] is None
+
+
+def test_a_date_filter_reaches_retrieval(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    response = client.post(
+        "/api/v1/qa/query",
+        json={
+            "query": "What caused the fire alarm during the night shift?",
+            "filters": {"date_from": "2026-08-01", "date_to": "2026-08-31"},
+        },
+        headers=auth_headers,
+    )
+
+    cited = {c["chunk_id"] for c in response.json()["data"]["citations"]}
+    assert cited <= {"log-007", "log-008"}
+
+
+def test_a_tag_filter_reaches_retrieval(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    response = client.post(
+        "/api/v1/qa/query",
+        json={
+            "query": "What caused the fire alarm during the night shift?",
+            "filters": {"tags": ["alarm"]},
+        },
+        headers=auth_headers,
+    )
+
+    cited = {c["chunk_id"] for c in response.json()["data"]["citations"]}
+    assert cited <= {"log-006"}
+
+
+def test_a_filter_cannot_reach_a_source_the_caller_may_not_read(
+    app,
+) -> None:
+    """The combination rule end to end: a contractor filtering for an area still cannot see
+    the incident report that happens to sit in it. A filter narrows; it never widens.
+    """
+    headers = {"Authorization": f"Bearer {signed_jwt(sub='u1', roles=['contractor'])}"}
+
+    response = TestClient(app).post(
+        "/api/v1/qa/query",
+        json={
+            "query": "What caused the fire alarm during the night shift?",
+            "filters": {"area_ids": ["north"]},
+        },
+        headers=headers,
+    )
+
+    cited = {c["chunk_id"] for c in response.json()["data"]["citations"]}
+    assert "log-006" not in cited, "log-006 is north, but lives in a source contractors lack"

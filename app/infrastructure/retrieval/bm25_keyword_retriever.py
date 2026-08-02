@@ -2,6 +2,7 @@ import math
 from collections import Counter
 
 from app.domain.models import RetrievedChunk
+from app.domain.retrieval import EffectiveSearchScope
 from app.infrastructure.retrieval.fixture_corpus import DEFAULT_FIXTURE_CORPUS, FixtureDocument
 from app.infrastructure.retrieval.text_normalization import tokenize
 
@@ -53,6 +54,7 @@ class BM25KeywordRetriever:
         top_k: int = 5,
         language: str | None = None,
         source_id: str | None = None,
+        scope: EffectiveSearchScope | None = None,
     ) -> list[RetrievedChunk]:
         query_terms = tokenize(query_text)  # Query time. Same function as index time.
         scores = [self._score(index, query_terms) for index in range(len(self._corpus))]
@@ -75,6 +77,11 @@ class BM25KeywordRetriever:
             # while walking the ranked list means a restricted search still fills top_k,
             # rather than truncating whatever survives a post-hoc filter.
             if source_id is not None and document.source_id != source_id:
+                continue
+            # And the caller's filters, for that same reason. `permits` is the domain's
+            # one definition of what a filter means, so this cannot drift from what the
+            # dense leg does.
+            if scope is not None and not scope.permits(document.metadata):
                 continue
             results.append(
                 RetrievedChunk(
