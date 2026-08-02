@@ -1,24 +1,26 @@
-import re
-
-from app.domain.models import GroundedAnswer
-
-# Recovers the evidence ids the prompt actually offered, so the stub can cite them.
-_EVIDENCE_ID_PATTERN = re.compile(r"\[Evidence \d+ \| id=([^\]\s]+)\]")
+from app.domain.citation import citation_marker
+from app.domain.models import GenerationRequest, GroundedAnswer
+from app.infrastructure.model_serving.llm.prompt_template import build_prompt
 
 
 class ModelClientStub:
     """Returns a canned completion that cites every piece of evidence it was given.
     Stands in for the Qwen model served via Cloudera AI Inference.
 
-    Reading ids back out of the prompt keeps the whole downstream path — citation
-    parsing, validation, caching — genuinely exercisable in development. It is a
-    development shortcut, not something the real client will do.
+    It reads the citation ids straight off the request, which is what the structured port
+    made possible -- the previous version scraped them back out of a prompt string with a
+    regex, a development hack that only worked because it knew how the prompt was built.
+
+    It still builds the prompt and discards it. That is not ceremony: it means a template
+    that fails to render is caught by every development request, rather than on the day a
+    real client is wired in behind it.
     """
 
-    async def generate(self, prompt: str) -> str:
-        chunk_ids = _EVIDENCE_ID_PATTERN.findall(prompt)
-        if not chunk_ids:
+    async def generate(self, request: GenerationRequest) -> str:
+        build_prompt(request)
+
+        if not request.evidence:
             return GroundedAnswer.REFUSAL_TEXT
 
-        markers = " ".join(f"[[{chunk_id}]]" for chunk_id in chunk_ids)
+        markers = " ".join(citation_marker(item.citation_id) for item in request.evidence)
         return f"This is a stub answer grounded in the provided evidence. {markers}"

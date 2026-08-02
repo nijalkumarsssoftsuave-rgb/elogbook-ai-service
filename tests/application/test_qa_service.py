@@ -1,11 +1,12 @@
 import pytest
 
 from app.application.audit_service import AuditService
+from app.application.citation_resolution_service import CitationResolutionService
 from app.application.citation_validation_service import CitationValidationService
 from app.application.dto import QueryRequestDTO
-from app.application.generation_service import GenerationService
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
+from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
@@ -14,6 +15,7 @@ from app.domain.models import (
     AuditRecord,
     DetectedLanguage,
     Embedding,
+    GenerationRequest,
     GroundedAnswer,
     PermissionScope,
     Question,
@@ -104,7 +106,7 @@ class FakeModelClient:
         self._completions = completions
         self.attempts = 0
 
-    async def generate(self, prompt: str) -> str:
+    async def generate(self, request: GenerationRequest) -> str:
         self.calls.append("generate")
         completion = self._completions[min(self.attempts, len(self._completions) - 1)]
         self.attempts += 1
@@ -136,8 +138,9 @@ class FakeAudit:
         self.recorded.append(record)
 
 
-# A completion citing evidence that was actually retrieved, and one citing nothing.
-GROUNDED_COMPLETION = f"The check was completed [[{EVIDENCE.chunk_id}]]."
+# A completion citing the evidence label the node issues for the single retrieved chunk,
+# and one citing nothing.
+GROUNDED_COMPLETION = "The check was completed [c1]."
 UNGROUNDED_COMPLETION = "I believe so, but cannot point at any source."
 
 
@@ -159,8 +162,9 @@ def _build_service(
                 FakeEmbedding(), FakeMultiSourceRetriever(calls), FakeReranker()
             ),
         ),
-        GenerationService(model_client=FakeModelClient(calls, completions)),
+        GenerationNode(model_client=FakeModelClient(calls, completions)),
         CitationValidationService(),
+        CitationResolutionService(),
         AuditService(cache, audit),
     )
 
@@ -200,6 +204,10 @@ async def test_execute_runs_the_pipeline_in_order_on_a_cache_miss(
     assert result.cache_hit is False
     assert result.refused is False
     assert [citation.chunk_id for citation in result.citations] == [EVIDENCE.chunk_id]
+    # Resolution ran: the reference has become a full citation, carrying detail only the
+    # retrieved chunk could supply.
+    assert result.citations[0].citation_id == "c1"
+    assert result.citations[0].source_title == "Morning Shift Equipment Log"
 
 
 async def test_execute_returns_the_cached_answer_without_retrieving_or_generating(
@@ -248,6 +256,7 @@ async def test_execute_refuses_after_two_failed_attempts_and_does_not_cache_the_
     assert result.is_grounded is False
     assert result.answer_text == GroundedAnswer.REFUSAL_TEXT
     assert result.citations == []
+    assert result.citations == []  # a refusal resolves nothing
     assert "record_query" in calls  # refusals are still audited
     assert "cache_set" not in calls  # but never cached
     assert audit.recorded[0].answer.refused is True
