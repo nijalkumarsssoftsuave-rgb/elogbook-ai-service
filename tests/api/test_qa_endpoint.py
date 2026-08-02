@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 
+from tests.conftest import signed_jwt
+
 
 def test_query_happy_path_returns_dummy_answer(client: TestClient, auth_headers: dict[str, str]) -> None:
     response = client.post(
@@ -56,3 +58,54 @@ def test_citations_are_returned_as_structured_references(
     # Numbering is contiguous and follows the order the model cited them in.
     assert [c["order"] for c in citations] == list(range(1, len(citations) + 1))
     assert [c["citation_id"] for c in citations] == [f"c{i}" for i in range(1, len(citations) + 1)]
+
+
+def test_a_grounded_answer_carries_a_confidence_score(
+    client: TestClient, auth_headers: dict[str, str]
+) -> None:
+    """ES-334 end to end. The field has been on the response since the first ticket and has
+    always been null; this is where it starts meaning something.
+    """
+    response = client.post(
+        "/api/v1/qa/query",
+        json={"query": "What caused the fire alarm during the night shift?"},
+        headers=auth_headers,
+    )
+
+    data = response.json()["data"]
+    assert data["refused"] is False
+    assert isinstance(data["confidence"], float)
+    assert 0.0 <= data["confidence"] <= 1.0
+
+
+def test_the_same_question_scores_the_same_on_every_request(
+    app, auth_headers: dict[str, str]
+) -> None:
+    """Determinism where a caller can actually see it. Asked from two separate clients so
+    the second answer is computed rather than served from the first one's cache.
+    """
+    body = {"query": "What maintenance was carried out on the packaging machine?"}
+
+    scores = {
+        TestClient(app).post("/api/v1/qa/query", json=body, headers=auth_headers).json()[
+            "data"
+        ]["confidence"]
+        for _ in range(3)
+    }
+
+    assert len(scores) == 1
+
+
+def test_a_refusal_carries_no_confidence_score(app) -> None:
+    """A refusal is not a weakly supported answer -- it is the absence of one, so scoring it
+    would invite a caller to compare the two on the same scale.
+    """
+    headers = {"Authorization": f"Bearer {signed_jwt(sub='u1', roles=['some-unknown-role'])}"}
+
+    response = TestClient(app).post(
+        "/api/v1/qa/query", json={"query": "anything at all"}, headers=headers
+    )
+
+    data = response.json()["data"]
+    assert data["refused"] is True
+    assert data["confidence"] is None

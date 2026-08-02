@@ -5,6 +5,10 @@ from fastapi import Depends
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
 from app.application.citation.citation_validator import CitationValidator
+from app.application.confidence.confidence_scoring_service import (
+    ConfidencePolicy,
+    ConfidenceScoringService,
+)
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
 from app.application.permission.permission_resolver import PermissionResolver
@@ -191,6 +195,29 @@ def get_citation_validator() -> CitationValidator:
     return CitationValidator()
 
 
+@lru_cache
+def get_confidence_policy() -> ConfidencePolicy:
+    """Reads the scoring policy off Settings once.
+
+    The translation lives here because the application layer must not import configuration
+    -- the service takes a policy object, and this is the seam that turns env vars into one.
+    """
+    settings = get_settings()
+    return ConfidencePolicy(
+        retrieval_weight=settings.confidence_retrieval_weight,
+        reranker_weight=settings.confidence_reranker_weight,
+        citation_weight=settings.confidence_citation_weight,
+        refusal_threshold=settings.confidence_refusal_threshold,
+        review_threshold=settings.confidence_review_threshold,
+    )
+
+
+def get_confidence_scoring_service(
+    policy: ConfidencePolicy = Depends(get_confidence_policy),
+) -> ConfidenceScoringService:
+    return ConfidenceScoringService(policy=policy)
+
+
 def get_audit_service(
     cache: CachePort = Depends(get_cache_port),
     audit: AuditPort = Depends(get_audit_port),
@@ -205,6 +232,9 @@ def get_qa_service(
     generation_node: GenerationNode = Depends(get_generation_node),
     citation_resolver: CitationResolver = Depends(get_citation_resolver),
     citation_validator: CitationValidator = Depends(get_citation_validator),
+    confidence_scoring_service: ConfidenceScoringService = Depends(
+        get_confidence_scoring_service
+    ),
     audit_service: AuditService = Depends(get_audit_service),
 ) -> QAApplicationService:
     return QAApplicationService(
@@ -214,6 +244,7 @@ def get_qa_service(
         generation_node,
         citation_resolver,
         citation_validator,
+        confidence_scoring_service,
         audit_service,
     )
 
