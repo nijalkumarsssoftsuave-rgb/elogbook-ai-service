@@ -1,8 +1,12 @@
-from app.domain.models import CitationValidationResult, GroundedAnswer, RetrievedChunk
+from app.domain.models import CitationValidationResult, GeneratedAnswer, RetrievedChunk
 
 
 class CitationValidationService:
     """Checks that an answer's citations are actually grounded in the retrieved evidence.
+
+    Runs on the model's *references*, before resolution: an answer that cites something we
+    never retrieved should be rejected without paying to resolve it, and rejecting it is
+    cheaper than unpicking a finished citation.
 
     Structural validation only — no model, no I/O, so it is synchronous and real rather
     than stubbed. It answers one question: does every citation point at a chunk we really
@@ -11,7 +15,7 @@ class CitationValidationService:
     """
 
     def validate(
-        self, answer: GroundedAnswer, retrieved_chunks: list[RetrievedChunk]
+        self, answer: GeneratedAnswer, retrieved_chunks: list[RetrievedChunk]
     ) -> CitationValidationResult:
         if not answer.citations:
             return CitationValidationResult(is_valid=False, reason="no_citations")

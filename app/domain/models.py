@@ -4,6 +4,8 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, computed_field, field_validator
 
+from app.domain.citation import Citation, ResolvedCitation
+
 
 class DetectedLanguage(BaseModel):
     code: str
@@ -31,15 +33,49 @@ class RetrievedChunk(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class Citation(BaseModel):
-    chunk_id: str
-    document_id: str
-    source_title: str
-    page_number: int | None = None
-    score: float
+class EvidenceItem(BaseModel):
+    """One piece of evidence as the model sees it.
+
+    Carries the citation id it was labelled with and the text -- and deliberately **not**
+    the chunk id. The model has no use for an internal identifier, and withholding it means
+    the only thing it can cite is a label we issued: it cannot invent a plausible-looking
+    chunk id, and the worst it can do is name a label that was never offered.
+    """
+
+    citation_id: str
+    text: str
+
+
+class GenerationRequest(BaseModel):
+    """What the model client is asked to answer.
+
+    Structured rather than a finished prompt string, so how that prompt is worded stays
+    with the adapter that talks to the model -- phrasing is model-specific, and the layer
+    above should not have an opinion about it.
+    """
+
+    question_text: str
+    language: str
+    evidence: list[EvidenceItem] = Field(default_factory=list)
+
+
+class GeneratedAnswer(BaseModel):
+    """What the model said, before its citations have been resolved.
+
+    Distinct from GroundedAnswer, and the distinction is not cosmetic: GroundedAnswer is
+    cached and audited, so by the time one is read back the retrieved chunks are long gone
+    and there is nothing left to resolve references against. Resolution therefore has to
+    happen before an answer becomes groundable, which means the two stages need two types.
+    """
+
+    answer_text: str
+    citations: list[Citation] = Field(default_factory=list)
+    confidence: float | None = None
 
 
 class GroundedAnswer(BaseModel):
+    """The finished answer: citations resolved, safe to cache, audit and return."""
+
     # What the service says when it cannot ground an answer. Lives here because it is a
     # policy the whole system shares: the prompt instructs the model to use it, the
     # orchestrator falls back to it, and the model stub returns it.
@@ -48,7 +84,7 @@ class GroundedAnswer(BaseModel):
     )
 
     answer_text: str
-    citations: list[Citation] = Field(default_factory=list)
+    citations: list[ResolvedCitation] = Field(default_factory=list)
     confidence: float | None = None
     is_grounded: bool = True
     # Kept distinct from is_grounded: a future guardrail could flag an answer as

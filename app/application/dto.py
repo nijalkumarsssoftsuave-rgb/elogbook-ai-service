@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.domain.citation import ResolvedCitation
 from app.domain.models import (
-    Citation,
     GroundedAnswer,
     PermissionScope,
     QueryProvenance,
@@ -25,7 +25,7 @@ class QueryRequestDTO(BaseModel):
 
 class QueryResultDTO(BaseModel):
     answer_text: str
-    citations: list[Citation] = Field(default_factory=list)
+    citations: list[ResolvedCitation] = Field(default_factory=list)
     confidence: float | None = None
     is_grounded: bool = True
     refused: bool = False

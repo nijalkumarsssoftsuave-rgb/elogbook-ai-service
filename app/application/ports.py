@@ -5,6 +5,7 @@ from app.domain.models import (
     AuditRecord,
     DetectedLanguage,
     Embedding,
+    GenerationRequest,
     GroundedAnswer,
     PermissionScope,
     Question,
@@ -94,11 +95,14 @@ class RerankerPort(Protocol):
 
 
 class ModelClientPort(Protocol):
-    """Sends a fully-built prompt to the LLM and returns the raw completion text.
-    Prompt construction and citation parsing live in the application layer, not here.
+    """Answers a question over labelled evidence and returns the raw completion text.
+
+    Takes a structured request rather than a finished prompt: how the instructions are
+    worded is model-specific, so the template belongs with the adapter that speaks to that
+    model. Parsing the citation markers back out stays in the application layer.
     """
 
-    async def generate(self, prompt: str) -> str: ...
+    async def generate(self, request: GenerationRequest) -> str: ...
 
 
 class GuardrailPort(Protocol):

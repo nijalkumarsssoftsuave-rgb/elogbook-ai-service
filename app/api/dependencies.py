@@ -3,8 +3,8 @@ from functools import lru_cache
 from fastapi import Depends
 
 from app.application.audit_service import AuditService
+from app.application.citation_resolution_service import CitationResolutionService
 from app.application.citation_validation_service import CitationValidationService
-from app.application.generation_service import GenerationService
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
 from app.application.ports import (
@@ -21,6 +21,7 @@ from app.application.ports import (
     SpeechToTextPort,
     VectorStorePort,
 )
+from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
@@ -175,14 +176,18 @@ def get_guardrail_service(
     return GuardrailService(guardrail=guardrail)
 
 
-def get_generation_service(
+def get_generation_node(
     model_client: ModelClientPort = Depends(get_model_client_port),
-) -> GenerationService:
-    return GenerationService(model_client=model_client)
+) -> GenerationNode:
+    return GenerationNode(model_client=model_client)
 
 
 def get_citation_validation_service() -> CitationValidationService:
     return CitationValidationService()
+
+
+def get_citation_resolution_service() -> CitationResolutionService:
+    return CitationResolutionService()
 
 
 def get_audit_service(
@@ -196,9 +201,12 @@ def get_qa_service(
     language_detection: LanguageDetectionService = Depends(get_language_detection_service),
     guardrail_service: GuardrailService = Depends(get_guardrail_service),
     retrieval_node: RetrievalNode = Depends(get_retrieval_node),
-    generation_service: GenerationService = Depends(get_generation_service),
+    generation_node: GenerationNode = Depends(get_generation_node),
     citation_validation_service: CitationValidationService = Depends(
         get_citation_validation_service
+    ),
+    citation_resolution_service: CitationResolutionService = Depends(
+        get_citation_resolution_service
     ),
     audit_service: AuditService = Depends(get_audit_service),
 ) -> QAApplicationService:
@@ -206,8 +214,9 @@ def get_qa_service(
         language_detection,
         guardrail_service,
         retrieval_node,
-        generation_service,
+        generation_node,
         citation_validation_service,
+        citation_resolution_service,
         audit_service,
     )
 
