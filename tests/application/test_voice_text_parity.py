@@ -2,7 +2,7 @@ import inspect
 
 from app.application.audit_service import AuditService
 from app.application.citation.citation_resolver import CitationResolver
-from app.application.citation.citation_validation_service import CitationValidationService
+from app.application.citation.citation_validator import CitationValidator
 from app.application.dto import QueryRequestDTO, TranscribeRequestDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
@@ -70,8 +70,8 @@ def _build_qa_service(cache: RecordingCache) -> QAApplicationService:
             ),
         ),
         GenerationNode(ModelClientStub()),
-        CitationValidationService(),
         CitationResolver(),
+        CitationValidator(),
         AuditService(cache, AuditStub()),
     )
 
