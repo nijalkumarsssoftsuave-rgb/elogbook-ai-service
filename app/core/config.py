@@ -34,7 +34,13 @@ def _split_csv(value: Any) -> Any:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # `extra="ignore"` because Settings and FeatureFlags read the same .env file. Without
+    # it, adding FEATURE_VOICE_ENABLED to .env -- the documented way to switch a
+    # capability off -- makes *this* class reject the file and the service fail to start.
+    # Two settings classes over one file cannot both forbid what the other owns.
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     service_jwt_secret: str
     service_jwt_algorithm: str = "HS256"

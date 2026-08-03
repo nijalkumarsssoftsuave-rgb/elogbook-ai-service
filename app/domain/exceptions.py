@@ -60,3 +60,17 @@ class UnsupportedLanguageError(Exception):
             f"Detected language '{language_code}' is not supported. "
             f"Supported languages: {', '.join(supported_languages)}."
         )
+
+
+class FeatureDisabledError(Exception):
+    """A capability was asked for that this deployment does not run.
+
+    Carries the feature name rather than a status code: what a disabled capability looks
+    like over HTTP is a transport decision, and it differs by feature -- a switched-off
+    endpoint is absent, while a switched-off request option is a request the caller should
+    change.
+    """
+
+    def __init__(self, feature: str, message: str) -> None:
+        super().__init__(message)
+        self.feature = feature

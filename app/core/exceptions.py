@@ -7,8 +7,10 @@ from starlette.responses import JSONResponse
 
 from app.api.schemas.envelope import ApiResponse, ErrorDetail
 from app.core.correlation import get_correlation_id
+from app.core.feature_flags import Feature
 from app.domain.exceptions import (
     AudioRejectionReason,
+    FeatureDisabledError,
     InvalidAudioError,
     TranscriptionFailedError,
     TranscriptionFailureReason,
@@ -29,6 +31,17 @@ _TRANSCRIPTION_FAILURE_STATUS: dict[TranscriptionFailureReason, int] = {
     TranscriptionFailureReason.MODEL_UNAVAILABLE: 503,
     TranscriptionFailureReason.TIMEOUT: 504,
 }
+
+
+# A switched-off endpoint is *absent*: a caller should not be able to tell a capability
+# this deployment does not run from one that was never built. A switched-off request option
+# is different -- the endpoint is there, and the caller sent something it will not honour,
+# so they are told to change the request rather than left to assume it was applied.
+_FEATURE_DISABLED_STATUS: dict[str, int] = {
+    Feature.VOICE: 404,
+    Feature.ADVANCED_FILTERS: 422,
+}
+_DEFAULT_FEATURE_DISABLED_STATUS = 404
 
 
 def error_response(
@@ -80,6 +93,19 @@ async def transcription_failed_exception_handler(
         code="TRANSCRIPTION_FAILED",
         message=str(exc),
         details={"reason": exc.reason.value, **exc.details},
+    )
+
+
+async def feature_disabled_exception_handler(
+    request: Request, exc: FeatureDisabledError
+) -> JSONResponse:
+    return error_response(
+        status_code=_FEATURE_DISABLED_STATUS.get(
+            exc.feature, _DEFAULT_FEATURE_DISABLED_STATUS
+        ),
+        code="FEATURE_DISABLED",
+        message=str(exc),
+        details={"feature": exc.feature},
     )
 
 

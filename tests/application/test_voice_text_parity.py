@@ -20,8 +20,12 @@ from app.application.retrieval_service import RetrievalService
 from app.application.review.human_review_service import HumanReviewService
 from app.application.stt_service import STTApplicationService
 from app.application.transcription_service import TranscriptionService
+from app.core.feature_flags import FeatureFlags
 from app.domain.models import GroundedAnswer
 from app.domain.permission import PermissionScope
+from app.infrastructure.configuration.feature_flag_provider import (
+    FeatureFlagProvider,
+)
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.multi_source_retriever import MultiSourceRetriever
@@ -87,6 +91,7 @@ def _build_qa_service(cache: RecordingCache) -> QAApplicationService:
         GroundingDecisionService(),
         HumanReviewService(InMemoryReviewQueue()),
         AuditService(cache, AuditStub()),
+        FeatureFlagProvider(FeatureFlags()),
     )
 
 

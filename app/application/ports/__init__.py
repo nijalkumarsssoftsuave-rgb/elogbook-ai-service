@@ -1,5 +1,6 @@
 from typing import Protocol
 
+from app.application.ports.feature_flag_port import FeatureFlagPort
 from app.domain.models import (
     AudioRequest,
     AuditRecord,
@@ -134,3 +135,23 @@ class AuditPort(Protocol):
     """
 
     async def record(self, record: AuditRecord) -> None: ...
+
+
+# Every port is importable from `app.application.ports`, wherever it is defined. The
+# feature-flag port sits in its own module because it is the one port with no domain
+# types in its signature -- it answers questions about the deployment, not the business.
+__all__ = [
+    "AuditPort",
+    "CachePort",
+    "EmbeddingPort",
+    "FeatureFlagPort",
+    "GuardrailPort",
+    "KeywordRetrieverPort",
+    "LanguageDetectorPort",
+    "ModelClientPort",
+    "MultiSourceRetrieverPort",
+    "PermissionResolverPort",
+    "RerankerPort",
+    "SpeechToTextPort",
+    "VectorStorePort",
+]

@@ -45,6 +45,10 @@ VIEWER = PermissionScope.from_roles(["viewer"])
 # audio. A fake engine is layered over it here so `audio_duration_seconds` has a real value
 # to travel with; the real adapter is exercised against genuine audio separately.
 KNOWN_AUDIO_SECONDS = 11.0
+from app.core.feature_flags import FeatureFlags
+from app.infrastructure.configuration.feature_flag_provider import (
+    FeatureFlagProvider,
+)
 from tests.conftest import DEFAULT_CONFIDENCE_POLICY
 
 
@@ -87,6 +91,7 @@ def _build(audit: RecordingAudit) -> tuple[QAApplicationService, STTApplicationS
         GroundingDecisionService(),
         HumanReviewService(InMemoryReviewQueue()),
         AuditService(CacheStub(), audit),
+        FeatureFlagProvider(FeatureFlags()),
     )
     stt_service = STTApplicationService(
         TranscriptionService(

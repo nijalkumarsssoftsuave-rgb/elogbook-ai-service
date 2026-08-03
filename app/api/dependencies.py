@@ -19,6 +19,7 @@ from app.application.ports import (
     AuditPort,
     CachePort,
     EmbeddingPort,
+    FeatureFlagPort,
     GuardrailPort,
     KeywordRetrieverPort,
     LanguageDetectorPort,
@@ -38,6 +39,9 @@ from app.application.review.ports.review_queue_port import ReviewQueuePort
 from app.application.stt_service import STTApplicationService
 from app.application.transcription_service import TranscriptionService
 from app.core.config import Settings, get_settings
+from app.core.feature_flags import Feature, get_feature_flags
+from app.domain.exceptions import FeatureDisabledError
+from app.infrastructure.configuration.feature_flag_provider import FeatureFlagProvider
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.model_serving.speech.faster_whisper_adapter import FasterWhisperAdapter
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
@@ -139,6 +143,26 @@ def build_speech_to_text_port(settings: Settings) -> SpeechToTextPort:
 @lru_cache
 def get_speech_to_text_port() -> SpeechToTextPort:
     return build_speech_to_text_port(get_settings())
+
+
+@lru_cache
+def get_feature_flag_port() -> FeatureFlagPort:
+    return FeatureFlagProvider(get_feature_flags())
+
+
+def require_voice_enabled(
+    features: FeatureFlagPort = Depends(get_feature_flag_port),
+) -> None:
+    """Guards the speech endpoint.
+
+    A route dependency rather than a check inside the handler, so a disabled capability is
+    refused before any request body is read -- and so the rule is visible on the route
+    rather than buried in what the route does.
+    """
+    if not features.is_voice_enabled():
+        raise FeatureDisabledError(
+            Feature.VOICE, "Voice transcription is not enabled on this deployment"
+        )
 
 
 @lru_cache
@@ -263,6 +287,7 @@ def get_qa_service(
     ),
     human_review_service: HumanReviewService = Depends(get_human_review_service),
     audit_service: AuditService = Depends(get_audit_service),
+    features: FeatureFlagPort = Depends(get_feature_flag_port),
 ) -> QAApplicationService:
     return QAApplicationService(
         language_detection,
@@ -275,6 +300,7 @@ def get_qa_service(
         grounding_decision_service,
         human_review_service,
         audit_service,
+        features,
     )
 
 

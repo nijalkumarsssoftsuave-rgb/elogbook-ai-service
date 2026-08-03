@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
-from app.api.dependencies import get_stt_service
+from app.api.dependencies import get_stt_service, require_voice_enabled
 from app.api.schemas.envelope import ApiResponse
 from app.api.schemas.stt import STTTranscribeResponseData
 from app.application.dto import TranscribeRequestDTO
@@ -20,7 +20,13 @@ router = APIRouter(prefix="/api/v1/stt", tags=["stt"])
 _UNNAMED_UPLOAD = "upload"
 
 
-@router.post("/transcribe", response_model=ApiResponse[STTTranscribeResponseData])
+@router.post(
+    "/transcribe",
+    response_model=ApiResponse[STTTranscribeResponseData],
+    # Declared on the route rather than checked in the handler, so a deployment without
+    # voice refuses before it reads a single byte of an upload.
+    dependencies=[Depends(require_voice_enabled)],
+)
 async def transcribe(
     file: Annotated[UploadFile, File(description="The recorded question.")],
     language_hint: Annotated[
