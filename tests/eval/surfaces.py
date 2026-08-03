@@ -31,6 +31,10 @@ from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
 from app.application.review.human_review_service import HumanReviewService
+from app.core.feature_flags import FeatureFlags
+from app.infrastructure.configuration.feature_flag_provider import (
+    FeatureFlagProvider,
+)
 from app.infrastructure.language.script_language_detector import ScriptLanguageDetector
 from app.infrastructure.retrieval.bm25_keyword_retriever import BM25KeywordRetriever
 from app.infrastructure.retrieval.fixture_corpus import DEFAULT_FIXTURE_CORPUS, FixtureDocument
@@ -97,6 +101,7 @@ def build_surfaces(corpus: list[FixtureDocument] | None = None) -> EvaluationSur
         GroundingDecisionService(),
         HumanReviewService(InMemoryReviewQueue()),
         AuditService(CacheStub(), AuditStub()),
+        FeatureFlagProvider(FeatureFlags()),
     )
     return EvaluationSurfaces(
         keyword_retriever=keyword_retriever,

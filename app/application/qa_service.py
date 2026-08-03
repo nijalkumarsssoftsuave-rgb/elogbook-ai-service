@@ -12,6 +12,7 @@ from app.application.confidence.grounding_decision_service import (
 from app.application.dto import QueryRequestDTO, QueryResultDTO
 from app.application.guardrail_service import GuardrailService
 from app.application.language_detection_service import LanguageDetectionService
+from app.application.ports import FeatureFlagPort
 from app.application.qa.nodes.generation import GenerationNode
 from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.review.human_review_service import HumanReviewService
@@ -27,6 +28,13 @@ class QAApplicationService:
     -> output guardrail -> audit & cache.
 
     Each collaborator owns its own details; this service only sequences them.
+
+    **Feature flags are read here and nowhere below.** A capability that can be switched
+    off is a decision about the shape of the pipeline, not about how a step behaves, so
+    the branch belongs to whatever sequences the steps. Pushing the check into
+    ConfidenceScoringService or HumanReviewService would give each one a mode in which it
+    does nothing, and every test of those services would then have to prove it was not in
+    that mode.
     """
 
     # One initial attempt plus exactly one retry, then a safe refusal.
@@ -44,6 +52,7 @@ class QAApplicationService:
         grounding_decision_service: GroundingDecisionService,
         human_review_service: HumanReviewService,
         audit_service: AuditService,
+        features: FeatureFlagPort,
     ) -> None:
         self._language_detection = language_detection
         self._guardrail_service = guardrail_service
@@ -54,6 +63,7 @@ class QAApplicationService:
         self._confidence_scoring_service = confidence_scoring_service
         self._grounding_decision_service = grounding_decision_service
         self._human_review_service = human_review_service
+        self._features = features
         self._audit_service = audit_service
 
     async def execute(self, request: QueryRequestDTO) -> QueryResultDTO:
@@ -83,7 +93,7 @@ class QAApplicationService:
         scored = await self._generate_and_validate(question, chunks, request.top_k)
         answer = await self._guardrail_service.check_answer(scored.delivered)
 
-        if scored.confidence is not None:
+        if scored.confidence is not None and self._features.is_human_review_enabled():
             # Routing reads the answer and creates work; it returns nothing into the
             # flow, so there is no path by which queueing a review could change what
             # the caller receives. It is handed the *generated* answer rather than the
@@ -132,6 +142,14 @@ class QAApplicationService:
             grounded = self._citation_resolver.resolve(generated, chunks)
             validation = self._citation_validator.validate(generated, grounded, chunks)
             if validation.is_valid:
+                if not self._features.is_confidence_scoring_enabled():
+                    # Nothing scored means nothing to decide on and nothing to route.
+                    # The answer goes out exactly as it did before ES-334 -- grounded,
+                    # cited, and carrying no confidence rather than a made-up one.
+                    return _ScoredAnswer(
+                        delivered=grounded, generated=grounded, confidence=None
+                    )
+
                 confidence = self._confidence_scoring_service.score(
                     chunks, requested_top_k, generated, validation
                 )

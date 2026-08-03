@@ -18,6 +18,7 @@ from app.application.qa.nodes.retrieval import RetrievalNode
 from app.application.qa_service import QAApplicationService
 from app.application.retrieval_service import RetrievalService
 from app.application.review.human_review_service import HumanReviewService
+from app.core.feature_flags import FeatureFlags
 from app.domain.citation import Citation
 from app.domain.exceptions import UnsupportedLanguageError
 from app.domain.models import (
@@ -33,6 +34,9 @@ from app.domain.models import (
     SourceSearchRequest,
 )
 from app.domain.permission import PermissionScope, SearchScope, Source
+from app.infrastructure.configuration.feature_flag_provider import (
+    FeatureFlagProvider,
+)
 from app.infrastructure.review.in_memory_review_queue import InMemoryReviewQueue
 
 # The services under test are concrete classes, so the fakes sit one level down at the
@@ -205,6 +209,7 @@ def _build_service(
         GroundingDecisionService(),
         HumanReviewService(review_queue or InMemoryReviewQueue()),
         AuditService(cache, audit),
+        FeatureFlagProvider(FeatureFlags()),
     )
 
 
